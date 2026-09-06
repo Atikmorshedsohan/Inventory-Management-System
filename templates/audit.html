@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Audit Logs{% endblock %}
+
+{% block page_title %}Audit Logs{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/audit.css' %}">
+{% endblock %}
+
+{% block content %}
+
+      <div class="section">
+        <h3>Summary</h3>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-title">Total Logs</div><div class="stat-value" id="statTotal">—</div></div>
+          <div class="stat-card"><div class="stat-title">Today</div><div class="stat-value" id="statToday">—</div></div>
+          <div class="stat-card"><div class="stat-title">This Week</div><div class="stat-value" id="statWeek">—</div></div>
+          <div class="stat-card"><div class="stat-title">This Month</div><div class="stat-value" id="statMonth">—</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="controls">
+          <input type="text" id="searchInput" placeholder="🔍 Search actions..." />
+          <select id="userFilter">
+            <option value="">All Users</option>
+          </select>
+          <select id="periodFilter">
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+          </select>
+        </div>
+
+        <div id="loadingState" class="loading">
+          <p>Loading audit logs...</p>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+          <h3>No Audit Logs Found</h3>
+          <p>No activity recorded yet</p>
+        </div>
+
+        <div class="table-container" id="tableContainer" style="display: none;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="logsBody">
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination" id="pagination" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/audit.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Dashboard{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+
+      <div class="stats-grid">
+        <div class="stat-card info">
+          <div class="stat-label">Total Items</div>
+          <div class="stat-value" id="total_items">0</div>
+          <div class="stat-change">+12%</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">Low Stock Items</div>
+          <div class="stat-value" id="low_stock_items">0</div>
+          <div class="stat-change">+5</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Stock IN (This Month)</div>
+          <div class="stat-value" id="stock_in">156</div>
+          <div class="stat-change">+8%</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">Available Items</div>
+          <div class="stat-value" id="available_items">0</div>
+          <div class="stat-change">+3%</div>
+        </div>
+      </div>
+
+      <!-- Pending Items Section (Admin/Manager Only) -->
+      <div id="pendingItemsSection" class="section" style="display: none;">
+        <h3>⏳ Pending Item Approvals</h3>
+        <div class="pending-items-container" id="pendingItemsContainer">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Location Overview</h3>
+        <div class="location-grid" id="locationGrid">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Recent Activity</h3>
+        <ul class="activity-list" id="activityList">
+          <li class="loading"><div class="spinner"></div></li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>Rooms Overview</h3>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Rooms</div>
+            <div class="stat-value" id="rooms_total">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Unassigned Items</div>
+            <div class="stat-value" id="rooms_unassigned">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Recent Moves (7d)</div>
+            <div class="stat-value" id="rooms_moves_7d">—</div>
+          </div>
+        </div>
+        <h4 style="margin-top:20px; margin-bottom:10px;">Recent Room Moves</h4>
+        <ul class="activity-list" id="roomActivityList">
+          <li class="loading"><div class="spinner"></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dashboard.js' %}" defer></script>
+{% endblock %}

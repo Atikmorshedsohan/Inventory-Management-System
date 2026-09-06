@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {% load static %}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}CSE Inventory{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <div class="logo" onclick="window.location.href='/'">📦 CSE Inventory</div>
+      <div class="nav">
+        <a href="/dashboard/" class="nav-item" id="dashboardNav">📊 Dashboard</a>
+        <a href="/items/" class="nav-item" id="itemsNav">📦 Item Management</a>
+        <a href="/stock/" class="nav-item" id="stockNav">↔️ Stock IN/OUT</a>
+        <a href="/requisitions/" class="nav-item" id="requisitionsNav">📋 Requisitions</a>
+        <a href="/reports/" class="nav-item" id="reportsNav">📈 Reports</a>
+        <a href="/roomwise-inventory/" class="nav-item" id="roomwiseNav">🏢 Roomwise Inventory</a>
+        <a href="/audit/" class="nav-item" id="auditNav">🔍 Audit Logs</a>
+      </div>
+      <div class="user-section">
+        <div class="user-info clickable" onclick="openProfileModal()">
+          <div class="avatar" id="avatar">A</div>
+          <div>
+            <div class="user-name" id="userName">Admin User</div>
+            <div class="user-role" id="userRole">Admin</div>
+          </div>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main">
+      <div class="header">
+        <div class="header-left">
+          <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">☰</button>
+          <div>
+            <h1>{% block page_title %}Page Title{% endblock %}</h1>
+            <div class="date" id="dateDisplay"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="error" class="error hidden"></div>
+
+      <!-- Page-specific content -->
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <!-- Common Modals -->
+  <div id="profileModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>User Profile</h2>
+        <button class="modal-close" onclick="closeProfileModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- View Mode -->
+        <div id="profileViewMode">
+          <div class="profile-item">
+            <label>Name:</label>
+            <p id="profileName">—</p>
+          </div>
+          <div class="profile-item">
+            <label>Email:</label>
+            <p id="profileEmail">—</p>
+          </div>
+          <div class="profile-item">
+            <label>Role:</label>
+            <p id="profileRole">—</p>
+          </div>
+          <div class="profile-item">
+            <label>Department:</label>
+            <p id="profileDept">—</p>
+          </div>
+          <div class="profile-item">
+            <label>Phone:</label>
+            <p id="profilePhone">—</p>
+          </div>
+          <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+            <button class="btn btn-primary" onclick="enableProfileEdit()" style="padding: 8px 16px; border: none; border-radius: 4px; background: #0066cc; color: white; cursor: pointer; font-weight: 600;">Edit Profile</button>
+          </div>
+        </div>
+
+        <!-- Edit Mode -->
+        <div id="profileEditMode" style="display: none;">
+          <div id="profileEditError" style="color: #d32f2f; display: none; margin-bottom: 12px; padding: 10px; background: #ffebee; border-radius: 4px;"></div>
+          <form id="profileEditForm">
+            <div class="profile-item">
+              <label for="editName">Name:</label>
+              <input type="text" id="editName" placeholder="Enter your name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            </div>
+            <div class="profile-item">
+              <label for="editEmail">Email:</label>
+              <input type="email" id="editEmail" placeholder="Enter your email" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            </div>
+            <div class="profile-item">
+              <label for="editDept">Department:</label>
+              <input type="text" id="editDept" placeholder="Enter your department" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            </div>
+            <div class="profile-item">
+              <label for="editPhone">Phone:</label>
+              <input type="tel" id="editPhone" placeholder="Enter your phone number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+              <button type="button" class="btn btn-secondary" onclick="disableProfileEdit()" style="padding: 8px 16px; border: none; border-radius: 4px; background: #f0f0f0; color: #333; cursor: pointer; font-weight: 600;">Cancel</button>
+              <button type="submit" class="btn btn-primary" style="padding: 8px 16px; border: none; border-radius: 4px; background: #0066cc; color: white; cursor: pointer; font-weight: 600;">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="{% static 'js/base.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

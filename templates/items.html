@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Item Management{% endblock %}
+
+{% block page_title %}Item Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/items.css' %}">
+{% endblock %}
+
+{% block content %}
+
+      <div class="controls">
+        <input type="text" id="searchBox" class="search-box" placeholder="Search items...">
+        <select id="categoryFilter" class="filter-select">
+          <option value="">All Categories</option>
+        </select>
+        <button class="add-btn" onclick="openAddModal()" id="addBtn">+ Add Item</button>
+      </div>
+
+      <div class="view-toggle">
+        <button class="toggle-btn active" onclick="showListView()">📋 List View</button>
+        <button class="toggle-btn" onclick="showRoomView()">🏢 Pending</button>
+      </div>
+
+      <div id="listView" class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Item Name</th>
+              <th>Category</th>
+              <th>Unit</th>
+              <th>Quantity</th>
+              <th>Status</th>
+              <th>Last Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="itemsTable">
+            <tr>
+              <td colspan="7" class="loading">Loading items...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="roomView" class="room-view" style="display: none;">
+        <!-- Room-wise inventory will be rendered here -->
+      </div>
+
+      <!-- Pending Items Section (Admin/Manager only) -->
+      <div id="pendingItemsSection" style="display: none; margin-top: 40px;">
+        <h2 style="margin-bottom: 20px; font-size: 18px; font-weight: 600;">⏳ Pending Item Approvals</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Room</th>
+                <th>Requested By</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pendingItemsTable">
+              <tr><td colspan="7" class="loading">Loading pending items...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="itemModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add New Item</h2>
+        <button class="modal-close" onclick="closeItemModal()" aria-label="Close">×</button>
+      </div>
+      <form onsubmit="saveItem(event)">
+        <div class="form-group">
+          <label>Item Name *</label>
+          <input type="text" id="itemName" required>
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select id="itemCategory" required>
+            <option value="">Select a category</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Room (Optional)</label>
+          <select id="itemRoom">
+            <option value="">Select a room</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Quantity *</label>
+            <input type="number" id="itemQuantity" required min="0">
+          </div>
+          <div class="form-group">
+            <label>Min Quantity *</label>
+            <input type="number" id="itemMinQty" required min="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Unit *</label>
+          <input type="text" id="itemUnit" required placeholder="e.g., pieces, kg, liter">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeItemModal()">Cancel</button>
+          <button type="submit" class="btn-submit" id="submitBtn">Create Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reject Modal -->
+  <div id="rejectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Reject Item Request</h2>
+        <button class="modal-close" onclick="closeRejectModal()" aria-label="Close">×</button>
+      </div>
+      <form onsubmit="submitReject(event)">
+        <div class="form-group">
+          <label>Rejection Reason *</label>
+          <textarea id="rejectionReason" required placeholder="Enter reason for rejection..." rows="4"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeRejectModal()">Cancel</button>
+          <button type="submit" class="btn-submit">Reject</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/items.js' %}"></script>
+{% endblock %}

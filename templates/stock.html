@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Stock IN/OUT{% endblock %}
+
+{% block page_title %}Stock IN/OUT{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock.css' %}">
+{% endblock %}
+
+{% block content %}
+
+      <div class="action-buttons-container">
+        <h2 class="section-title">Quick Actions</h2>
+        <div id="permissionAlert" style="display: none; background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; border-radius: 6px; margin-bottom: 16px;">
+          ℹ️ You don't have permission to perform stock transactions. Please contact an admin to submit requests.
+        </div>
+        <div class="action-btns">
+          <button class="action-btn btn-in" onclick="openStockModal('IN')" title="Record incoming stock">
+            <span class="btn-icon">⬇️</span>
+            <span class="btn-text">Stock IN</span>
+          </button>
+          <button class="action-btn btn-out" onclick="openStockModal('OUT')" title="Record outgoing stock">
+            <span class="btn-icon">⬆️</span>
+            <span class="btn-text">Stock OUT</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="stats-section">
+        <h2 class="section-title">Stock Summary</h2>
+        <div class="stats">
+          <div class="stat-card stat-card-in">
+            <div class="stat-header">
+              <div class="stat-icon">⬇️</div>
+              <div class="stat-title">Total Stock IN</div>
+            </div>
+            <div class="stat-value" id="totalIn">0 items</div>
+            <div class="stat-bar"><div class="stat-bar-fill in"></div></div>
+          </div>
+          <div class="stat-card stat-card-out">
+            <div class="stat-header">
+              <div class="stat-icon">⬆️</div>
+              <div class="stat-title">Total Stock OUT</div>
+            </div>
+            <div class="stat-value" id="totalOut">0 items</div>
+            <div class="stat-bar"><div class="stat-bar-fill out"></div></div>
+          </div>
+          <div class="stat-card stat-card-movements">
+            <div class="stat-header">
+              <div class="stat-icon">📊</div>
+              <div class="stat-title">Total Movements</div>
+            </div>
+            <div class="stat-value" id="totalMovements">0 records</div>
+            <div class="stat-bar"><div class="stat-bar-fill movements"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="history-section">
+        <h2 class="section-title">Movement History</h2>
+        <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Item Name</th>
+              <th>Quantity</th>
+              <th>Date</th>
+              <th>Performed By</th>
+              <th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody id="transactionsTable">
+            <tr><td colspan="6" class="loading">Loading transactions...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      </div>
+
+      <!-- Pending Stock Transactions (Admin only) -->
+      <div id="pendingTransSection" style="display: none; margin-top: 40px;">
+        <h2 class="section-title">⏳ Pending Approvals</h2>
+        <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Item Name</th>
+              <th>Quantity</th>
+              <th>Room</th>
+              <th>Requested By</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pendingTransTable">
+            <tr><td colspan="7" class="loading">Loading pending...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- Stock IN/OUT Modal -->
+  <div id="stockModal" class="modal">
+    <div class="modal-content modal-transaction">
+      <div class="modal-header">
+        <div class="modal-title-wrapper">
+          <div class="modal-icon" id="modalIcon">⬇️</div>
+          <h2 id="modalTitle">Stock IN</h2>
+        </div>
+        <button class="modal-close" onclick="closeStockModal()">✕</button>
+      </div>
+      <form onsubmit="saveTransaction(event)">
+        <div class="form-group">
+          <label for="transRoom">Select Room <span class="required">*</span></label>
+          <select id="transRoom" required>
+            <option value="">-- Choose a room --</option>
+          </select>
+          <div class="form-hint">Select the room to update inventory</div>
+        </div>
+        <div class="form-group">
+          <label for="transItem">Select Item <span class="required">*</span></label>
+          <select id="transItem" required>
+            <option value="">-- Choose an item --</option>
+          </select>
+          <div class="form-hint">Select the item to record stock movement</div>
+        </div>
+        <div class="form-group">
+          <label for="transQuantity">Quantity <span class="required">*</span></label>
+          <input type="number" id="transQuantity" required min="1" placeholder="Enter quantity">
+          <div class="form-hint">Number of units</div>
+        </div>
+        <div class="form-group">
+          <label for="transNotes">Notes</label>
+          <textarea id="transNotes" rows="3" placeholder="Add any additional notes or remarks..."></textarea>
+          <div class="form-hint">Optional: reference number, supplier, etc.</div>
+        </div>
+        <input type="hidden" id="transType" value="IN">
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeStockModal()">Cancel</button>
+          <button type="submit" class="btn-submit" id="submitBtn">Record Transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Item Modal -->
+  <div id="addItemModal" class="modal">
+    <div class="modal-content modal-item">
+      <div class="modal-header">
+        <div class="modal-title-wrapper">
+          <div class="modal-icon">📦</div>
+          <h2>Add </h2>
+        </div>
+        <button class="modal-close" onclick="closeAddItemModal()">✕</button>
+      </div>
+      <form onsubmit="saveNewItem(event)">
+        <div class="form-group">
+          <label for="newItemRoom">Select Room <span class="required">*</span></label>
+          <select id="newItemRoom" required>
+            <option value="">-- Choose a room --</option>
+          </select>
+          <div class="form-hint">Select the room to store this item</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="newItemName">Item Name <span class="required">*</span></label>
+            <input type="text" id="newItemName" required placeholder="e.g., HDMI Cable" />
+          </div>
+          <div class="form-group">
+            <label for="newItemCategory">Category</label>
+            <select id="newItemCategory">
+              <option value="">Select category</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="newItemUnit">Unit</label>
+            <input type="text" id="newItemUnit" placeholder="e.g., pcs, box" />
+          </div>
+          <div class="form-group">
+            <label for="newItemQuantity">Initial Quantity <span class="required">*</span></label>
+            <input type="number" id="newItemQuantity" required min="0" value="0" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="newItemMinQuantity">Minimum Quantity (Low-stock alert)</label>
+          <input type="number" id="newItemMinQuantity" min="0" value="0" />
+          <div class="form-hint">You'll be notified when stock falls below this level</div>
+        </div>
+        <div class="form-group">
+          <label for="newItemDescription">Description</label>
+          <textarea id="newItemDescription" rows="3" placeholder="Optional: specs, model number, location, etc."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeAddItemModal()">Cancel</button>
+          <button type="submit" class="btn-submit">Save Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reject Modal -->
+  <div id="rejectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Reject Request</h2>
+        <button class="modal-close" onclick="closeRejectModal()">✕</button>
+      </div>
+      <form onsubmit="submitReject(event)">
+        <div class="form-group">
+          <label for="rejectReason">Rejection Reason <span class="required">*</span></label>
+          <textarea id="rejectReason" required rows="4" placeholder="Enter reason for rejection..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeRejectModal()">Cancel</button>
+          <button type="submit" class="btn-submit">Reject</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/stock.js' %}" defer></script>
+{% endblock %}

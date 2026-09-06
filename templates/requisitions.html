@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Requisitions - CSE Inventory{% endblock %}
+
+{% block page_title %}Requisitions{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/requisitions.css' %}">
+{% endblock %}
+
+{% block content %}
+
+                <div class="section">
+                    <h3>Summary</h3>
+                    <div class="stat-grid">
+                        <div class="stat-card"><div class="stat-title">Pending</div><div class="stat-value" id="statPending">—</div></div>
+                        <div class="stat-card"><div class="stat-title">Approved</div><div class="stat-value" id="statApproved">—</div></div>
+                        <div class="stat-card"><div class="stat-title">Rejected</div><div class="stat-value" id="statRejected">—</div></div>
+                        <div class="stat-card"><div class="stat-title">Issued</div><div class="stat-value" id="statIssued">—</div></div>
+                    </div>
+                </div>
+
+                <div class="section">
+            <div class="actions-bar">
+                <div class="filter-group">
+                    <select id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="issued">Issued</option>
+                    </select>
+                    <input type="text" id="searchInput" placeholder="Search by purpose...">
+                </div>
+                <button class="btn btn-primary" onclick="openNewRequisitionModal()">
+                    ➕ New Requisition
+                </button>
+            </div>
+                    <div id="errorMessage" class="error-message"></div>
+                    <div id="successMessage" class="success-message"></div>
+
+                    <div id="loadingState" class="loading">
+                            <p>Loading requisitions...</p>
+                    </div>
+
+                    <div id="emptyState" class="empty-state" style="display: none;">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <h3>No Requisitions Found</h3>
+                            <p>Create your first requisition to get started</p>
+                    </div>
+
+                    <table class="requisitions-table" id="requisitionsTable" style="display: none;">
+                            <thead>
+                                    <tr>
+                                            <th>ID</th>
+                                            <th>Requested By</th>
+                                            <th>Purpose</th>
+                                            <th>Status</th>
+                                            <th>Items Count</th>
+                                            <th>Created At</th>
+                                            <th>Actions</th>
+                                    </tr>
+                            </thead>
+                            <tbody id="requisitionsBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+    </div>
+
+    <!-- New Requisition Modal -->
+    <div id="newRequisitionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Requisition</h2>
+                <button class="close-btn" onclick="closeNewRequisitionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalError" class="error-message"></div>
+                <form id="requisitionForm">
+                    <div class="form-group">
+                        <label for="purpose">Purpose *</label>
+                        <textarea id="purpose" placeholder="Enter the purpose of this requisition..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="department">Department</label>
+                        <input type="text" id="department" placeholder="Enter department">
+                    </div>
+                    <div class="form-group">
+                        <label for="phoneNumber">Mobile Number</label>
+                        <input type="tel" id="phoneNumber" placeholder="Enter mobile number">
+                    </div>
+                    <div class="form-group">
+                        <label for="returnDuration">Return Duration (Days)</label>
+                        <input type="number" id="returnDuration" min="1" value="7">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Requested Items *</label>
+                        <div class="items-list" id="itemsList">
+                            <div class="item-row">
+                                <select class="item-select" required>
+                                    <option value="">Select item...</option>
+                                </select>
+                                <input type="number" class="item-quantity" min="1" placeholder="Quantity" required>
+                                <button type="button" class="btn btn-danger btn-sm" onclick="removeItemRow(this)">✕</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addItemRow()">+ Add Item</button>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary" onclick="closeNewRequisitionModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Submit Requisition</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Details Modal -->
+    <div id="viewDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Requisition Details</h2>
+                <button class="close-btn" onclick="closeViewDetailsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="detailsContent"></div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/requisitions.js' %}" defer></script>
+{% endblock %}

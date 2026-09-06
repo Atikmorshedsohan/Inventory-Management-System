@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Reports{% endblock %}
+
+{% block page_title %}Reports{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reports.css' %}">
+{% endblock %}
+
+{% block content %}
+
+      <div class="section">
+        <h3>Summary</h3>
+        <div class="stat-grid" id="summaryGrid">
+          <div class="stat-card"><div class="stat-title">Total Items</div><div class="stat-value" id="statTotalItems">—</div></div>
+          <div class="stat-card"><div class="stat-title">Low Stock Items</div><div class="stat-value" id="statLowStock">—</div></div>
+          <div class="stat-card"><div class="stat-title">Pending Requisitions</div><div class="stat-value" id="statPendingReqs">—</div></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <select class="select-box">
+          <option>Overview Report</option>
+          <option>Monthly Report</option>
+          <option>Quarterly Report</option>
+        </select>
+        <select class="select-box">
+          <option>This Month</option>
+          <option>Last Month</option>
+          <option>Last 3 Months</option>
+          <option>This Year</option>
+        </select>
+        <button class="export-btn" onclick="exportReport('excel')" style="background: #10b981;">📊 Export Excel</button>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Items by Location</h3>
+          <div class="chart-canvas">
+            <canvas id="locationChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Items by Category</h3>
+          <div class="chart-canvas">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Stock Movement Trends</h3>
+        <div class="chart-canvas" style="height:280px;">
+          <canvas id="movementChart"></canvas>
+        </div>
+      </div>
+
+      <div class="alert-section">
+        <div class="alert-header">
+          ⚠️ Low Stock Alert
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th>Current Stock</th>
+                <th>Minimum Stock</th>
+                <th>Shortage</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody id="lowStockTable">
+              <tr><td colspan="5" class="loading">Loading low stock items...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/reports.js' %}" defer></script>
+{% endblock %}

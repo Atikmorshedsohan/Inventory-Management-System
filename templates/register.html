@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  {% load static %}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CSE Inventory Management — Sign Up</title>
+  <link rel="stylesheet" href="{% static 'css/register.css' %}">
+</head>
+<body>
+  <div class="wrap">
+    <section class="left">
+      <h1>CSE Inventory Management</h1>
+      <p class="lead">Create your account to start managing department resources efficiently.</p>
+      <div class="feature"><div class="icon">👤</div><div><strong>User Roles</strong><br/><span class="muted">Admin, Manager, Viewer access levels</span></div></div>
+      <div class="feature"><div class="icon">🔒</div><div><strong>Secure Access</strong><br/><span class="muted">JWT-based authentication</span></div></div>
+      <div class="feature"><div class="icon">📊</div><div><strong>Track Everything</strong><br/><span class="muted">Items, stock movements, and reports</span></div></div>
+      <div class="links">
+        <a href="/api/">API Root</a>
+        <a href="/swagger/">Swagger Docs</a>
+        <a href="/redoc/">ReDoc Docs</a>
+        <a href="/admin/">Django Admin</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">Create Account</h2>
+      <p class="muted">Fill in your details to get started</p>
+      <div id="error" class="error"></div>
+      <div id="success" class="success"></div>
+      <form id="registerForm">
+        <label>Full Name *</label>
+        <input type="text" id="name" placeholder="Enter your full name" required />
+
+        <label>Email Address *</label>
+        <input type="email" id="email" placeholder="Enter your email" required />
+
+        <div class="row">
+          <div>
+            <label>Password *</label>
+            <div class="password-group">
+              <input type="password" id="password" placeholder="Min 8 characters" required minlength="8" />
+              <button type="button" class="toggle-pwd" onclick="togglePassword('password')">👁️</button>
+            </div>
+          </div>
+          <div>
+            <label>Confirm Password *</label>
+            <div class="password-group">
+              <input type="password" id="password_confirm" placeholder="Re-enter password" required />
+              <button type="button" class="toggle-pwd" onclick="togglePassword('password_confirm')">👁️</button>
+            </div>
+          </div>
+        </div>
+
+        <label>Role *</label>
+        <select id="role" required>
+          <option value="viewer">Viewer</option>
+          <option value="staff">Staff</option>
+          <option value="manager">Manager</option>
+        </select>
+
+        <button type="submit">Create Account</button>
+      </form>
+      
+      <div class="back-link">
+        Already have an account? <a href="/">Sign In</a>
+      </div>
+    </section>
+  </div>
+
+  <script src="{% static 'js/register.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Roomwise Inventory{% endblock %}
+
+{% block page_title %}Roomwise Inventory{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/items.css' %}">
+<style>
+  .request-modal .modal-content { max-width: 520px; width: 90%; }
+  .request-modal .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .request-modal label { font-weight: 600; font-size: 13px; color: #333; }
+  .request-modal input, .request-modal textarea, .request-modal select { padding: 10px; border: 1px solid #dcdcdc; border-radius: 6px; font-size: 14px; }
+  .request-modal .modal-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 0 0 0; }
+  .request-modal .modal-actions button { padding: 10px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+  .request-modal .modal-actions .secondary { background: #f0f0f0; color: #333; }
+  .request-modal .modal-actions .primary { background: #0066cc; color: white; }
+  /* Summary Cards */
+  .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .summary-card { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; text-align: center; }
+  .summary-value { font-size: 32px; font-weight: 700; color: #0066cc; }
+  .summary-label { font-size: 14px; color: #666; margin-top: 8px; }
+  
+  /* Room Cards */
+  .room-card { background: white; border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+  .room-header { background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%); color: white; padding: 16px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  .room-header:hover { background: linear-gradient(135deg, #0052a3 0%, #004080 100%); }
+  .room-title-section { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  .room-title { margin: 0; font-size: 20px; font-weight: 600; color: white; }
+  .expand-icon { font-size: 18px; color: white; transition: transform 0.3s ease; }
+  
+  /* Room Properties Grid */
+  .room-properties { padding: 20px; background: #f9f9f9; border-bottom: 1px solid #e5e5e5; }
+  .properties-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .property-box { background: white; border: 1px solid #e5e5e5; border-radius: 6px; padding: 12px; display: flex; align-items: center; gap: 12px; transition: all 0.2s ease; }
+  .property-box:hover { border-color: #0066cc; box-shadow: 0 2px 8px rgba(0,102,204,0.1); transform: translateY(-2px); }
+  .property-icon { font-size: 24px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: #f0f7ff; border-radius: 50%; }
+  .property-content { flex: 1; }
+  .property-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .property-value { font-size: 15px; font-weight: 600; color: #333; }
+  .property-value.has-key { color: #2e7d32; }
+  .property-value.no-key { color: #999; }
+  
+  /* Room Items Section */
+  .room-items { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+  .room-card.expanded .room-items { max-height: 2000px; }
+  .items-header { padding: 16px 20px; background: #f9f9f9; border-top: 1px solid #e5e5e5; }
+  .items-header h4 { margin: 0; font-size: 16px; color: #333; }
+  .room-items table { width: 100%; }
+  .room-items th { background: #f0f0f0; padding: 10px 16px; font-size: 12px; text-align: left; font-weight: 600; color: #666; }
+  .room-items td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+  .room-items tr:hover { background: #f9f9f9; }
+  
+  /* Status badges */
+  .low-stock-badge { background: #fffde7; color: #f57f17; }
+  
+  /* Activity Section */
+  .activity-section { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+  .activity-section h3 { margin: 0 0 16px 0; font-size: 18px; color: #333; }
+  .activity-list { list-style: none; padding: 0; margin: 0; }
+  .activity-item { display: flex; align-items: start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; flex-shrink: 0; }
+  .activity-icon.in { background: #e3f2fd; color: #1976d2; }
+  .activity-icon.out { background: #fce4ec; color: #c2185b; }
+  .activity-content { flex: 1; }
+  .activity-title { font-weight: 600; font-size: 14px; color: #333; margin-bottom: 4px; }
+  .activity-detail { font-size: 12px; color: #666; }
+  .empty-activity { text-align: center; color: #999; padding: 20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+      <div id="requestKeyModal" class="modal request-modal">
+        <div class="modal-content">
+          <div class="modal-header" style="display:flex; justify-content: space-between; align-items:center; gap:12px;">
+            <h3 style="margin:0;">Request Room Key</h3>
+            <button class="modal-close" onclick="closeRequestKeyModal()" aria-label="Close" style="border:none; background:none; font-size:20px; cursor:pointer;">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Room</label>
+              <div id="requestRoomName" style="font-weight:600;">—</div>
+            </div>
+            <div class="form-group">
+              <label for="requestKeySelect">Key</label>
+              <select id="requestKeySelect"></select>
+            </div>
+            <div class="form-group">
+              <label for="requestPurpose">Purpose</label>
+              <textarea id="requestPurpose" rows="3" placeholder="Enter purpose"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="requestReturn">Expected Return</label>
+              <input type="datetime-local" id="requestReturn" />
+            </div>
+            <div id="requestKeyError" style="color:#d32f2f; font-size:12px; min-height:16px;"></div>
+          </div>
+          <div class="modal-footer modal-actions">
+            <button class="secondary" type="button" onclick="closeRequestKeyModal()">Cancel</button>
+            <button class="primary" type="button" onclick="submitKeyRequest(event)">Submit Request</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="returnKeyModal" class="modal request-modal">
+        <div class="modal-content">
+          <div class="modal-header" style="display:flex; justify-content: space-between; align-items:center; gap:12px;">
+            <h3 style="margin:0;">Return Room Key</h3>
+            <button class="modal-close" onclick="closeReturnKeyModal()" aria-label="Close" style="border:none; background:none; font-size:20px; cursor:pointer;">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Key Number</label>
+              <div id="returnKeyNumber" style="font-weight:600;">—</div>
+            </div>
+            <div class="form-group">
+              <label>Room</label>
+              <div id="returnRoomName" style="font-weight:600;">—</div>
+            </div>
+            <div class="form-group">
+              <label for="returnLocation">Return Location</label>
+              <input type="text" id="returnLocation" placeholder="e.g., Office Reception, Lab Door" />
+            </div>
+            <div id="returnKeyError" style="color:#d32f2f; font-size:12px; min-height:16px;"></div>
+          </div>
+          <div class="modal-footer modal-actions">
+            <button class="secondary" type="button" onclick="closeReturnKeyModal()">Cancel</button>
+            <button class="primary" type="button" onclick="submitReturnKey(event)">Return Key</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="summary-value" id="totalRooms">0</div>
+          <div class="summary-label">Total Rooms</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="totalItems">0</div>
+          <div class="summary-label">Unique Items</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="totalQuantity">0</div>
+          <div class="summary-label">Total Quantity</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-value" id="lowStockCount">0</div>
+          <div class="summary-label">Low Stock Items</div>
+        </div>
+      </div>
+
+      <!-- Recent Activity Section -->
+      <div class="activity-section">
+        <h3>Recent Activity</h3>
+        <ul id="activityList" class="activity-list">
+          <li class="empty-activity">No recent activity</li>
+        </ul>
+      </div>
+
+      <!-- Recent Room Moves & Key Activities Section -->
+      <div class="activity-section">
+        <h3>Recent Room Moves & Key Activities</h3>
+        <ul id="roomMovesList" class="activity-list">
+          <li class="empty-activity">No recent room moves or key activities</li>
+        </ul>
+      </div>
+
+      <div id="roomsContainer">
+        <div class="loading">
+          <div class="spinner"></div>
+          Loading rooms...
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/roomwise-inventory.js' %}"></script>
+{% endblock %}
