@@ -1,14 +1,11 @@
 from django.urls import path
-from .views import (
-    DashboardStatsView,
-    InventoryReportView,
-    PurchaseReportView,
-    RequisitionReportView
-)
+
+from . import views
 
 urlpatterns = [
-    path('dashboard/', DashboardStatsView.as_view(), name='dashboard-stats'),
-    path('inventory/', InventoryReportView.as_view(), name='inventory-report'),
-    path('purchases/', PurchaseReportView.as_view(), name='purchase-report'),
-    path('requisitions/', RequisitionReportView.as_view(), name='requisition-report'),
+    path("reports/dashboard/", views.DashboardStatsView.as_view(), name="dashboard-stats"),
+    path("reports/rooms-overview/", views.RoomOverviewView.as_view(), name="rooms-overview"),
+    path("reports/roomwise-activity/", views.RoomwiseActivityView.as_view(), name="roomwise-activity"),
+    path("reports/export/csv/", views.ExportCSVView.as_view(), name="reports-export-csv"),
+    path("reports/export/excel/", views.ExportExcelView.as_view(), name="reports-export-excel"),
 ]

@@ -4,68 +4,102 @@
   {% load static %}
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CSE Inventory Management — Sign Up</title>
-  <link rel="stylesheet" href="{% static 'css/register.css' %}">
+  <meta name="description" content="Create an account for the CSE Inventory Management System." />
+  <title>CSE Inventory Management &mdash; Sign Up</title>
+  <link rel="icon" href="{% static 'img/just-logo.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/auth.css' %}">
 </head>
-<body>
-  <div class="wrap">
-    <section class="left">
-      <h1>CSE Inventory Management</h1>
-      <p class="lead">Create your account to start managing department resources efficiently.</p>
-      <div class="feature"><div class="icon">👤</div><div><strong>User Roles</strong><br/><span class="muted">Admin, Manager, Viewer access levels</span></div></div>
-      <div class="feature"><div class="icon">🔒</div><div><strong>Secure Access</strong><br/><span class="muted">JWT-based authentication</span></div></div>
-      <div class="feature"><div class="icon">📊</div><div><strong>Track Everything</strong><br/><span class="muted">Items, stock movements, and reports</span></div></div>
-      <div class="links">
-        <a href="/api/">API Root</a>
-        <a href="/swagger/">Swagger Docs</a>
-        <a href="/redoc/">ReDoc Docs</a>
-        <a href="/admin/">Django Admin</a>
+<body class="auth">
+  <div class="auth-wrap">
+
+    <section class="auth-hero">
+      <div class="brand-badge">
+        <img class="logo-img" src="{% static 'img/just-logo.png' %}" alt="JUST" />
+        <span>CSE Inventory Management</span>
       </div>
+
+      <h1>Create your account and start <em>tracking department resources</em>.</h1>
+      <p class="lead">
+        Your access level decides what you can see and do &mdash; from read-only
+        browsing to approving requisitions.
+      </p>
+
+      <ul class="feature-list">
+        <li>
+          <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          <div><strong>Role based access</strong><span>Viewer, staff, manager and admin</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <div><strong>Secure sign in</strong><span>Token based authentication</span></div>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="7" y="12" width="3" height="5" rx="1"/><rect x="12" y="8" width="3" height="9" rx="1"/><rect x="17" y="10" width="3" height="7" rx="1"/></svg>
+          <div><strong>Full visibility</strong><span>Items, movements and reports</span></div>
+        </li>
+      </ul>
     </section>
 
-    <section class="card">
-      <h2 class="card-title">Create Account</h2>
-      <p class="muted">Fill in your details to get started</p>
+    <section class="auth-card">
+      <h2>Create account</h2>
+      <p class="sub">Fill in your details to get started</p>
+
       <div id="error" class="error"></div>
       <div id="success" class="success"></div>
-      <form id="registerForm">
-        <label>Full Name *</label>
-        <input type="text" id="name" placeholder="Enter your full name" required />
 
-        <label>Email Address *</label>
-        <input type="email" id="email" placeholder="Enter your email" required />
+      <form id="registerForm" novalidate>
+        <div class="field">
+          <label for="name">Full name</label>
+          <input type="text" id="name" placeholder="Enter your full name" autocomplete="name" required />
+        </div>
 
-        <div class="row">
-          <div>
-            <label>Password *</label>
+        <div class="field">
+          <label for="email">Email address</label>
+          <input type="email" id="email" placeholder="you@cse.edu" autocomplete="email" required />
+        </div>
+
+        <div class="field-pair">
+          <div class="field">
+            <label for="password">Password</label>
             <div class="password-group">
-              <input type="password" id="password" placeholder="Min 8 characters" required minlength="8" />
-              <button type="button" class="toggle-pwd" onclick="togglePassword('password')">👁️</button>
+              <input type="password" id="password" placeholder="Min 8 characters" minlength="8" autocomplete="new-password" required />
+              <button type="button" class="toggle-pwd" onclick="togglePassword('password')" aria-label="Show or hide password">
+                <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
             </div>
           </div>
-          <div>
-            <label>Confirm Password *</label>
+          <div class="field">
+            <label for="password_confirm">Confirm password</label>
             <div class="password-group">
-              <input type="password" id="password_confirm" placeholder="Re-enter password" required />
-              <button type="button" class="toggle-pwd" onclick="togglePassword('password_confirm')">👁️</button>
+              <input type="password" id="password_confirm" placeholder="Re-enter password" autocomplete="new-password" required />
+              <button type="button" class="toggle-pwd" onclick="togglePassword('password_confirm')" aria-label="Show or hide password">
+                <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
             </div>
           </div>
         </div>
 
-        <label>Role *</label>
-        <select id="role" required>
-          <option value="viewer">Viewer</option>
-          <option value="staff">Staff</option>
-          <option value="manager">Manager</option>
-        </select>
+        <div class="field">
+          <label for="role">Role</label>
+          <select id="role" required>
+            <option value="viewer">Viewer</option>
+            <option value="staff">Staff</option>
+            <option value="manager">Manager</option>
+          </select>
+        </div>
 
-        <button type="submit">Create Account</button>
+        <button type="submit">Create account</button>
       </form>
-      
-      <div class="back-link">
-        Already have an account? <a href="/">Sign In</a>
-      </div>
+
+      <p class="auth-footer">
+        Already have an account? <a href="/">Sign in</a>
+      </p>
     </section>
+
   </div>
 
   <script src="{% static 'js/register.js' %}"></script>

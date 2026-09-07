@@ -4,24 +4,55 @@
   {% load static %}
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="CSE Inventory Management System" />
   <title>{% block title %}CSE Inventory{% endblock %}</title>
+  <link rel="icon" href="{% static 'img/just-logo.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+  <!-- Icon sprite (stroke uses currentColor, so icons follow the nav colour) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <g id="i-dashboard"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></g>
+      <g id="i-items"><path d="M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></g>
+      <g id="i-stock"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></g>
+      <g id="i-requisitions"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M8 11h8M8 16h5"/></g>
+      <g id="i-reports"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="7" y="12" width="3" height="5" rx="1"/><rect x="12" y="8" width="3" height="9" rx="1"/><rect x="17" y="10" width="3" height="7" rx="1"/></g>
+      <g id="i-rooms"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 6h1M14 6h1M9 10h1M14 10h1M9 14h1M14 14h1"/><path d="M10 22v-4h4v4"/></g>
+      <g id="i-audit"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="m13.3 16.3 1.7 1.7"/></g>
+      <g id="i-pin"><path d="M12 21s7-5.5 7-11a7 7 0 0 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></g>
+      <g id="i-key"><circle cx="8" cy="15" r="4.5"/><path d="m11.2 11.8 8.3-8.3M17 6l2.5 2.5M14.5 8.5 17 11"/></g>
+      <g id="i-hash"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></g>
+      <g id="i-arrow-down"><path d="M12 5v14M19 12l-7 7-7-7"/></g>
+      <g id="i-arrow-up"><path d="M12 19V5M5 12l7-7 7 7"/></g>
+      <g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+      <g id="i-alert"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></g>
+      <g id="i-clock"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></g>
+      <g id="i-undo"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a6 6 0 0 1 0 12h-3"/></g>
+    </defs>
+  </svg>
+
   <div class="container">
     <!-- Sidebar Navigation -->
-    <div class="sidebar">
-      <div class="logo" onclick="window.location.href='/'">📦 CSE Inventory</div>
-      <div class="nav">
-        <a href="/dashboard/" class="nav-item" id="dashboardNav">📊 Dashboard</a>
-        <a href="/items/" class="nav-item" id="itemsNav">📦 Item Management</a>
-        <a href="/stock/" class="nav-item" id="stockNav">↔️ Stock IN/OUT</a>
-        <a href="/requisitions/" class="nav-item" id="requisitionsNav">📋 Requisitions</a>
-        <a href="/reports/" class="nav-item" id="reportsNav">📈 Reports</a>
-        <a href="/roomwise-inventory/" class="nav-item" id="roomwiseNav">🏢 Roomwise Inventory</a>
-        <a href="/audit/" class="nav-item" id="auditNav">🔍 Audit Logs</a>
+    <aside class="sidebar">
+      <div class="logo" onclick="window.location.href='/'">
+        <img class="logo-img" src="{% static 'img/just-logo.png' %}" alt="JUST" />
+        <span class="logo-text">CSE Inventory</span>
       </div>
+      <nav class="nav">
+        <a href="/dashboard/" class="nav-item" id="dashboardNav"><svg class="nav-icon"><use href="#i-dashboard"/></svg>Dashboard</a>
+        <a href="/items/" class="nav-item" id="itemsNav"><svg class="nav-icon"><use href="#i-items"/></svg>Item Management</a>
+        <a href="/stock/" class="nav-item" id="stockNav"><svg class="nav-icon"><use href="#i-stock"/></svg>Stock IN / OUT</a>
+        <a href="/requisitions/" class="nav-item" id="requisitionsNav"><svg class="nav-icon"><use href="#i-requisitions"/></svg>Requisitions</a>
+        <a href="/reports/" class="nav-item" id="reportsNav"><svg class="nav-icon"><use href="#i-reports"/></svg>Reports</a>
+        <a href="/roomwise-inventory/" class="nav-item" id="roomwiseNav"><svg class="nav-icon"><use href="#i-rooms"/></svg>Roomwise Inventory</a>
+        <a href="/audit/" class="nav-item" id="auditNav"><svg class="nav-icon"><use href="#i-audit"/></svg>Audit Logs</a>
+      </nav>
       <div class="user-section">
         <div class="user-info clickable" onclick="openProfileModal()">
           <div class="avatar" id="avatar">A</div>
@@ -30,87 +61,89 @@
             <div class="user-role" id="userRole">Admin</div>
           </div>
         </div>
-        <button class="logout-btn" onclick="logout()">Logout</button>
+        <button class="logout-btn" onclick="logout()">Log out</button>
       </div>
-    </div>
+    </aside>
 
     <!-- Main Content Area -->
-    <div class="main">
+    <main class="main">
       <div class="header">
         <div class="header-left">
-          <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">☰</button>
+          <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">&#9776;</button>
           <div>
             <h1>{% block page_title %}Page Title{% endblock %}</h1>
-            <div class="date" id="dateDisplay"></div>
+            <p class="header-sub">{% block page_subtitle %}{% endblock %}</p>
           </div>
+        </div>
+        <div class="header-right">
+          <div class="date" id="dateDisplay"></div>
+          {% block header_actions %}{% endblock %}
         </div>
       </div>
 
-      <div id="error" class="error hidden"></div>
-
-      <!-- Page-specific content -->
-      {% block content %}{% endblock %}
-    </div>
+      <div class="content">
+        <div id="error" class="error hidden"></div>
+        {% block content %}{% endblock %}
+      </div>
+    </main>
   </div>
 
-  <!-- Common Modals -->
+  <!-- Profile Modal -->
   <div id="profileModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
         <h2>User Profile</h2>
-        <button class="modal-close" onclick="closeProfileModal()" aria-label="Close">×</button>
+        <button class="modal-close" onclick="closeProfileModal()" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
-        <!-- View Mode -->
         <div id="profileViewMode">
           <div class="profile-item">
-            <label>Name:</label>
-            <p id="profileName">—</p>
+            <label>Name</label>
+            <p id="profileName">&mdash;</p>
           </div>
           <div class="profile-item">
-            <label>Email:</label>
-            <p id="profileEmail">—</p>
+            <label>Email</label>
+            <p id="profileEmail">&mdash;</p>
           </div>
           <div class="profile-item">
-            <label>Role:</label>
-            <p id="profileRole">—</p>
+            <label>Role</label>
+            <p id="profileRole">&mdash;</p>
           </div>
           <div class="profile-item">
-            <label>Department:</label>
-            <p id="profileDept">—</p>
+            <label>Department</label>
+            <p id="profileDept">&mdash;</p>
           </div>
           <div class="profile-item">
-            <label>Phone:</label>
-            <p id="profilePhone">—</p>
+            <label>Phone</label>
+            <p id="profilePhone">&mdash;</p>
           </div>
-          <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
-            <button class="btn btn-primary" onclick="enableProfileEdit()" style="padding: 8px 16px; border: none; border-radius: 4px; background: #0066cc; color: white; cursor: pointer; font-weight: 600;">Edit Profile</button>
+          <div class="form-actions">
+            <button class="btn btn-primary" onclick="enableProfileEdit()">Edit Profile</button>
           </div>
         </div>
 
-        <!-- Edit Mode -->
         <div id="profileEditMode" style="display: none;">
-          <div id="profileEditError" style="color: #d32f2f; display: none; margin-bottom: 12px; padding: 10px; background: #ffebee; border-radius: 4px;"></div>
+          <div id="profileEditError" class="error" style="display: none;"></div>
           <form id="profileEditForm">
-            <div class="profile-item">
-              <label for="editName">Name:</label>
-              <input type="text" id="editName" placeholder="Enter your name" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            <div class="form-group">
+              <label for="editName">Name</label>
+              <input type="text" id="editName" placeholder="Enter your name" required>
             </div>
-            <div class="profile-item">
-              <label for="editEmail">Email:</label>
-              <input type="email" id="editEmail" placeholder="Enter your email" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            <div class="form-group">
+              <label for="editEmail">Email</label>
+              <input type="email" id="editEmail" placeholder="Enter your email" required>
             </div>
-            <div class="profile-item">
-              <label for="editDept">Department:</label>
-              <input type="text" id="editDept" placeholder="Enter your department" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            <div class="form-group">
+              <label for="editDept">Department</label>
+              <input type="text" id="editDept" placeholder="Enter your department">
             </div>
-            <div class="profile-item">
-              <label for="editPhone">Phone:</label>
-              <input type="tel" id="editPhone" placeholder="Enter your phone number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            <div class="form-group">
+              <label for="editPhone">Phone</label>
+              <input type="tel" id="editPhone" placeholder="Enter your phone number">
             </div>
-            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
-              <button type="button" class="btn btn-secondary" onclick="disableProfileEdit()" style="padding: 8px 16px; border: none; border-radius: 4px; background: #f0f0f0; color: #333; cursor: pointer; font-weight: 600;">Cancel</button>
-              <button type="submit" class="btn btn-primary" style="padding: 8px 16px; border: none; border-radius: 4px; background: #0066cc; color: white; cursor: pointer; font-weight: 600;">Save Changes</button>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" onclick="disableProfileEdit()">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
           </form>
         </div>
@@ -118,7 +151,6 @@
     </div>
   </div>
 
-  <!-- Scripts -->
   <script src="{% static 'js/base.js' %}"></script>
   {% block extra_js %}{% endblock %}
 </body>

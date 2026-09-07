@@ -38,9 +38,16 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_yasg',
     'django_filters',
-    
-    # Local unified app
-    'inventory',
+
+    # Local apps (one per domain)
+    'common',
+    'accounts',
+    'audit',
+    'catalog',
+    'stock',
+    'requisitions',
+    'keys',
+    'reports',
 ]
 
 MIDDLEWARE = [
@@ -123,7 +130,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom User Model
-AUTH_USER_MODEL = 'inventory.User'
+AUTH_USER_MODEL = 'accounts.User'
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -141,6 +148,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'EXCEPTION_HANDLER': 'common.exception_handler.custom_exception_handler',
 }
 
 # JWT Settings

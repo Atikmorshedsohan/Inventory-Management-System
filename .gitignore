@@ -6,6 +6,7 @@ __pycache__/
 # Django
 *.log
 db.sqlite3
+db.sqlite3.bak.*
 media/
 staticfiles/
 
@@ -19,6 +20,11 @@ staticfiles/
 .coverage
 htmlcov/
 .vscode/
+
+# Generated analysis artifacts
+PROJECT_ANALYSIS_REPORT.md
+PROJECT_ANALYSIS_REPORT.pdf
+generate_project_report_pdf.py
 
 # OS files
 .DS_Store

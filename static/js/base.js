@@ -120,10 +120,11 @@ function applyUserUI(user) {
     if (auditNav) auditNav.style.display = 'none';
   } else {
     // Show requisitions and audit log navigation for non-viewers (admin, manager, staff)
+    // Empty string restores the stylesheet's display value (flex) rather than forcing block.
     const requisitionsNav = document.getElementById('requisitionsNav');
     const auditNav = document.getElementById('auditNav');
-    if (requisitionsNav) requisitionsNav.style.display = 'block';
-    if (auditNav) auditNav.style.display = 'block';
+    if (requisitionsNav) requisitionsNav.style.display = '';
+    if (auditNav) auditNav.style.display = '';
   }
   
   // Update profile modal if it exists
@@ -302,8 +303,8 @@ async function saveProfileChanges(event) {
       
       // Show success message
       const successMsg = document.createElement('div');
-      successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4caf50; color: white; padding: 12px 20px; border-radius: 4px; z-index: 10000; box-shadow: 0 2px 8px rgba(0,0,0,0.2);';
-      successMsg.textContent = '✓ Profile updated successfully';
+      successMsg.className = 'toast';
+      successMsg.textContent = 'Profile updated successfully';
       document.body.appendChild(successMsg);
       
       setTimeout(() => successMsg.remove(), 3000);

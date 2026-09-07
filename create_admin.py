@@ -5,7 +5,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'inventory_backend.settings')
 django.setup()
 
-from inventory.models import User
+from accounts.models import User
 
 # Create superuser
 admin_user = User.objects.create_user(

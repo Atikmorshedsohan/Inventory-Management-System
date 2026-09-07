@@ -192,53 +192,32 @@ async function loadPendingItems() {
     container.innerHTML = '';
     
     if (items.length === 0) {
-      container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No pending items</p>';
+      container.innerHTML = '<p class="empty">No pending items</p>';
       return;
     }
-    
+
     items.forEach(item => {
       const card = document.createElement('div');
       card.className = 'pending-item-card';
-      card.style.cssText = `
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-      `;
-      
+      const meta = [
+        item.category_name || 'No category',
+        `${item.quantity} ${item.unit || 'units'}`,
+        `Requested by ${item.requested_by_name || 'Unknown'}`,
+        item.requested_at ? new Date(item.requested_at).toLocaleString() : ''
+      ].filter(Boolean).join(' • ');
+
       card.innerHTML = `
-        <div style="flex: 1;">
-          <div style="font-weight: 600; font-size: 15px; color: #333; margin-bottom: 6px;">
-            ${item.item_name}
-          </div>
-          <div style="font-size: 13px; color: #666;">
-            ${item.category_name || 'No category'} • ${item.quantity} ${item.unit || 'units'} • 
-            Requested by ${item.requested_by_name || 'Unknown'} • 
-            ${item.requested_at ? new Date(item.requested_at).toLocaleString() : ''}
-          </div>
-          ${item.description ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">${item.description}</div>` : ''}
+        <div style="flex:1; min-width:0;">
+          <div class="pending-title">${item.item_name}</div>
+          <div class="pending-meta">${meta}</div>
+          ${item.description ? `<div class="pending-desc">${item.description}</div>` : ''}
         </div>
-        <div style="display: flex; gap: 8px;">
-          <button 
-            onclick="approvePendingItem(${item.pending_item_id})"
-            style="background: #4caf50; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;"
-          >
-            ✓ Approve
-          </button>
-          <button 
-            onclick="rejectPendingItem(${item.pending_item_id})"
-            style="background: #f44336; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600;"
-          >
-            ✗ Reject
-          </button>
+        <div class="pending-actions">
+          <button class="btn btn-primary btn-sm" onclick="approvePendingItem(${item.pending_item_id})">Approve</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectPendingItem(${item.pending_item_id})">Reject</button>
         </div>
       `;
-      
+
       container.appendChild(card);
     });
   } catch (e) {
