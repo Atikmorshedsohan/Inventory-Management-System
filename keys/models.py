@@ -8,6 +8,7 @@ from .utils import user_display
 class RoomKey(models.Model):
     STATUS_CHOICES = (
         ("available", "Available"),
+        ("reserved", "Reserved"),
         ("in_use", "In Use"),
         ("lost", "Lost"),
         ("maintenance", "Maintenance"),
@@ -49,6 +50,9 @@ class KeyAuditLog(models.Model):
         ("restored", "Restored"),
         ("created", "Created"),
         ("borrowed", "Borrowed"),
+        ("approved", "Borrow Approved"),
+        ("picked_up", "Handover Confirmed"),
+        ("rejected", "Borrow Rejected"),
         ("returned_borrow", "Returned from Borrow"),
     )
 
@@ -107,7 +111,17 @@ class KeyBorrow(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     requested_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(blank=True, null=True)
+    # Set only when the physical handover is confirmed (see services.confirm_pickup).
     borrowed_at = models.DateTimeField(blank=True, null=True)
+    handed_over_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="key_handovers",
+        db_column="handed_over_by_id",
+    )
+    handover_notes = models.TextField(blank=True, null=True)
     expected_return_at = models.DateTimeField()
     returned_at = models.DateTimeField(blank=True, null=True)
     rejection_reason = models.TextField(blank=True, null=True)
@@ -126,3 +140,8 @@ class KeyBorrow(models.Model):
         if self.status == "borrowed" and self.expected_return_at:
             return timezone.now() > self.expected_return_at
         return False
+
+    @property
+    def awaiting_pickup(self):
+        """Approved but the borrower has not physically collected the key yet."""
+        return self.status == "approved"

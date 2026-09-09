@@ -1,0 +1,203 @@
+/* ============================================================
+   Room Inventory Snapshot — screen + print.
+   The print rules turn the page into a stock-count sheet: the
+   shell, controls and status colours drop away, and each room
+   starts on its own page with a blank "Counted" column.
+   ============================================================ */
+
+#searchInput {
+  padding: 9px 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  font-size: var(--fs-base);
+  font-family: inherit;
+  background: var(--surface);
+  min-width: 220px;
+}
+
+#searchInput:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: var(--ring);
+}
+
+.controls .chk {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.snapshot-meta {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-4);
+}
+
+.stat-value.bad { color: var(--danger); }
+
+.room-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.room-head h3 {
+  margin: 0;
+}
+
+.room-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  margin-top: 2px;
+  text-transform: capitalize;
+}
+
+.room-totals {
+  display: flex;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.room-totals .bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+td.num, th.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+tr.row-low td {
+  background: var(--warning-bg);
+}
+
+/* Blank column to tick off during a physical count - print only */
+.count-col {
+  display: none;
+}
+
+.print-header {
+  display: none;
+}
+
+/* ============ Print ============ */
+@media print {
+  @page {
+    margin: 14mm;
+    size: A4 portrait;
+  }
+
+  .sidebar,
+  .header,
+  .no-print,
+  .notif-bell,
+  #profileModal {
+    display: none !important;
+  }
+
+  .container,
+  .main,
+  .content {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    grid-template-columns: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+
+  .print-header {
+    display: block;
+    margin-bottom: 10mm;
+    border-bottom: 2px solid #000;
+    padding-bottom: 4mm;
+  }
+
+  .print-header h1 {
+    margin: 0;
+    font-size: 16pt;
+  }
+
+  .print-header p {
+    margin: 2mm 0 0;
+    font-size: 9pt;
+  }
+
+  .section {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0 0 8mm;
+    background: #fff;
+  }
+
+  /* Each room gets its own count sheet. */
+  .room-block {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .room-block:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .table-container {
+    overflow: visible !important;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #999;
+    padding: 4px 6px;
+    font-size: 10pt;
+  }
+
+  thead {
+    display: table-header-group; /* repeat headers across pages */
+  }
+
+  tr, td, th {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Colour-coded rows and badges do not survive greyscale printing. */
+  tr.row-low td {
+    background: #fff;
+  }
+
+  .status-badge {
+    border: 1px solid #000;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .count-col {
+    display: table-cell;
+    width: 26mm;
+  }
+
+  .stat-grid {
+    display: none;
+  }
+}

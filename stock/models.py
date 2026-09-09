@@ -35,6 +35,12 @@ class StockTransaction(models.Model):
         return f"{self.item.item_name} - {self.type} - {self.quantity}"
 
 
+TRANSFER_TYPES = (
+    ("full", "Full move"),
+    ("partial", "Partial move"),
+)
+
+
 class RoomItemHistory(models.Model):
     history_id = models.AutoField(primary_key=True)
     item = models.ForeignKey(
@@ -64,12 +70,56 @@ class RoomItemHistory(models.Model):
     moved_at = models.DateTimeField(auto_now_add=True)
     remarks = models.TextField(blank=True, null=True)
 
+    # --- Move Item workflow: quantity + before/after snapshots ---------------
+    transfer_type = models.CharField(max_length=10, choices=TRANSFER_TYPES, default="full")
+    quantity = models.IntegerField(null=True, blank=True)
+    # For a partial move the destination stock lands on a sibling item row.
+    dest_item = models.ForeignKey(
+        "catalog.Item",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="incoming_transfers",
+        db_column="dest_item_id",
+    )
+    source_qty_before = models.IntegerField(null=True, blank=True)
+    source_qty_after = models.IntegerField(null=True, blank=True)
+    dest_qty_before = models.IntegerField(null=True, blank=True)
+    dest_qty_after = models.IntegerField(null=True, blank=True)
+
     class Meta:
         db_table = "room_item_history"
         ordering = ["-moved_at"]
 
     def __str__(self):
         return f"{self.item.item_name}: {self.from_room} → {self.to_room}"
+
+
+class StockImportBatch(models.Model):
+    """One bulk stock-in upload: a CSV of items to stock in at once."""
+
+    batch_id = models.AutoField(primary_key=True)
+    filename = models.CharField(max_length=255, blank=True, default="")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="stock_import_batches",
+        db_column="uploaded_by_id",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    total_rows = models.IntegerField(default=0)
+    success_count = models.IntegerField(default=0)
+    error_count = models.IntegerField(default=0)
+    # Per-row outcome: [{"row": 2, "status": "ok"|"error", "message": str, ...}]
+    report = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        db_table = "stock_import_batches"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Import #{self.batch_id} ({self.success_count}/{self.total_rows} ok)"
 
 
 class PendingStockTransaction(models.Model):

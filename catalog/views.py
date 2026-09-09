@@ -70,8 +70,21 @@ class ItemViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        item = serializer.save()
+        data = serializer.validated_data
+        # A fresh item's initial count is opening stock (it never hit the ledger),
+        # unless the caller stated an explicit opening balance.
+        if "opening_quantity" in data:
+            item = serializer.save()
+        else:
+            item = serializer.save(opening_quantity=data.get("quantity", 0))
         services.note_item_created(user=self.request.user, item=item)
+        services.sync_reorder_alert(item)
+
+    def perform_update(self, serializer):
+        item = serializer.save()
+        # A hand-edited quantity can push the item below (or back above) its
+        # minimum without a stock transaction.
+        services.sync_reorder_alert(item)
 
     @action(detail=False, methods=["get"])
     def roomwise(self, request):
@@ -104,7 +117,8 @@ class PendingItemViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
-        serializer.save(requested_by=self.request.user)
+        pending = serializer.save(requested_by=self.request.user)
+        services.note_item_submitted(user=self.request.user, pending_item=pending)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def approve(self, request, pk=None):

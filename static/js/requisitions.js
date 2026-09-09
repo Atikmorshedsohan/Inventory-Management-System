@@ -1,6 +1,36 @@
 let allRequisitions = [];
 let allItems = [];
 let currentUser = null;
+let openDetailsReqId = null;
+
+const STATUS_LABELS = {
+  pending: 'PENDING',
+  approved: 'APPROVED',
+  rejected: 'REJECTED',
+  partially_issued: 'PARTIAL',
+  issued: 'ISSUED',
+  returned: 'RETURNED'
+};
+
+function statusLabel(status) {
+  return STATUS_LABELS[status] || (status || '').toUpperCase();
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+const EVENT_ICON = {
+  created: '📝',
+  approved: '✅',
+  rejected: '⛔',
+  partially_issued: '📦',
+  issued: '📦',
+  returned: '↩️',
+  comment: '💬'
+};
 
 /**
  * Requisitions Page - Specific functionality
@@ -125,66 +155,92 @@ function renderRequisitions() {
   document.getElementById('requisitionsTable').style.display = 'table';
   document.getElementById('emptyState').style.display = 'none';
 
+  const isAdmin = currentUser?.role === 'admin';
+  const isElevated = ['admin', 'manager', 'staff'].includes(currentUser?.role);
+
   tbody.innerHTML = filtered
-    .map((req) => `
+    .map((req) => {
+      const issuable = req.status === 'approved' || req.status === 'partially_issued';
+      return `
                 <tr>
                     <td>#${req.req_id}</td>
-                    <td>${req.user_name}</td>
-                    <td>${req.purpose.substring(0, 50)}${req.purpose.length > 50 ? '...' : ''}</td>
-                    <td><span class="status-badge status-${req.status}">${req.status.toUpperCase()}</span></td>
+                    <td>${escapeHtml(req.user_name)}</td>
+                    <td>${escapeHtml(req.purpose.substring(0, 50))}${req.purpose.length > 50 ? '…' : ''}</td>
+                    <td><span class="status-badge status-${req.status}">${statusLabel(req.status)}</span></td>
                     <td>${req.items.length} items</td>
                     <td>${new Date(req.created_at).toLocaleString()}</td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-secondary btn-sm" onclick="viewDetails(${req.req_id})">View</button>
-                            ${req.status === 'pending' && currentUser?.role === 'admin' ? `
+                            ${req.status === 'pending' && isAdmin ? `
                                 <button class="btn btn-success btn-sm" onclick="approveRequisition(${req.req_id})">Approve</button>
                                 <button class="btn btn-danger btn-sm" onclick="rejectRequisition(${req.req_id})">Reject</button>
                             ` : ''}
-                            ${req.status === 'approved' && currentUser?.role === 'admin' ? `
-                                <button class="btn btn-primary btn-sm" onclick="issueRequisition(${req.req_id})">Issue</button>
+                            ${issuable && isAdmin ? `
+                                <button class="btn btn-primary btn-sm" onclick="issueRequisition(${req.req_id})">${req.status === 'partially_issued' ? 'Issue remaining' : 'Issue'}</button>
                             ` : ''}
-                            ${req.status === 'issued' && ['admin', 'manager', 'staff'].includes(currentUser?.role) ? `
+                            ${(req.status === 'issued' || req.status === 'partially_issued') && isElevated ? `
                               <button class="btn btn-secondary btn-sm" onclick="returnRequisition(${req.req_id})">Return</button>
                             ` : ''}
                         </div>
                     </td>
                 </tr>
-            `)
+            `;
+    })
     .join('');
 }
 
 function renderSummary() {
-  const counts = { pending: 0, approved: 0, rejected: 0, issued: 0 };
+  const counts = { pending: 0, approved: 0, rejected: 0, partially_issued: 0, issued: 0 };
   allRequisitions.forEach((r) => {
     if (Object.prototype.hasOwnProperty.call(counts, r.status)) counts[r.status] += 1;
   });
   document.getElementById('statPending').textContent = counts.pending;
   document.getElementById('statApproved').textContent = counts.approved;
   document.getElementById('statRejected').textContent = counts.rejected;
+  const partialEl = document.getElementById('statPartial');
+  if (partialEl) partialEl.textContent = counts.partially_issued;
   document.getElementById('statIssued').textContent = counts.issued;
 }
 
 function viewDetails(reqId) {
   const req = allRequisitions.find((r) => r.req_id === reqId);
   if (!req) return;
+  openDetailsReqId = reqId;
+
+  const isAdmin = currentUser?.role === 'admin';
+  const canIssueLines = isAdmin && (req.status === 'approved' || req.status === 'partially_issued');
+  const canComment = currentUser?.user_id === req.user
+    || ['admin', 'manager', 'staff'].includes(currentUser?.role);
 
   const itemsList = req.items
     .map((item) => {
       const catalogItem = allItems.find((i) => i.item_id === item.item || i.id === item.item);
       const available = catalogItem?.quantity ?? '—';
+      const issued = item.issued_quantity ?? 0;
+      const outstanding = item.outstanding_quantity ?? Math.max(item.quantity - issued, 0);
+      const lineBtn = (canIssueLines && outstanding > 0)
+        ? `<button class="btn btn-primary btn-sm" onclick="issueLine(${req.req_id}, ${item.req_item_id})">Issue ${Math.min(outstanding, Number(available) || 0) || ''}</button>`
+        : '';
       return `
         <tr>
-          <td>${item.item_name}</td>
+          <td>${escapeHtml(item.item_name)}</td>
           <td>${item.quantity}</td>
+          <td>${issued}</td>
+          <td class="${outstanding > 0 ? 'outstanding' : ''}">${outstanding}</td>
           <td>${available}</td>
+          <td>${lineBtn}</td>
         </tr>
       `;
     })
     .join('');
 
-    const returnInfo = getReturnInfo(req);
-    document.getElementById('detailsContent').innerHTML = `
+  const returnInfo = getReturnInfo(req);
+  const events = Array.isArray(req.events) ? req.events : [];
+  const lastRejection = [...events].reverse().find((e) => e.event_type === 'rejected' && e.note);
+
+  document.getElementById('detailsContent').innerHTML = `
+                ${lastRejection ? `<div class="reject-note">⛔ <strong>Rejection reason:</strong> ${escapeHtml(lastRejection.note)}</div>` : ''}
                 <div class="details-view">
                     <div class="details-row">
                         <div class="details-label">Requisition ID:</div>
@@ -192,23 +248,23 @@ function viewDetails(reqId) {
                     </div>
                     <div class="details-row">
                         <div class="details-label">Requested By:</div>
-                        <div class="details-value">${req.user_name}</div>
+                        <div class="details-value">${escapeHtml(req.user_name)}</div>
                     </div>
                     <div class="details-row">
                         <div class="details-label">Status:</div>
-                        <div class="details-value"><span class="status-badge status-${req.status}">${req.status.toUpperCase()}</span></div>
+                        <div class="details-value"><span class="status-badge status-${req.status}">${statusLabel(req.status)}</span></div>
                     </div>
                     <div class="details-row">
                         <div class="details-label">Purpose:</div>
-                        <div class="details-value">${req.purpose}</div>
+                        <div class="details-value">${escapeHtml(req.purpose)}</div>
                     </div>
                     <div class="details-row">
                       <div class="details-label">Department:</div>
-                      <div class="details-value">${req.department || '—'}</div>
+                      <div class="details-value">${escapeHtml(req.department || '—')}</div>
                     </div>
                     <div class="details-row">
                       <div class="details-label">Mobile Number:</div>
-                      <div class="details-value">${req.phone_number || '—'}</div>
+                      <div class="details-value">${escapeHtml(req.phone_number || '—')}</div>
                     </div>
                     <div class="details-row">
                       <div class="details-label">Return Duration:</div>
@@ -229,12 +285,15 @@ function viewDetails(reqId) {
                 </div>
                 <h3 style="margin: 20px 0 10px 0;">Requested Items</h3>
                 <div class="details-view">
-                  <table style="width: 100%; border-collapse: collapse;">
+                  <table class="req-items-table">
                     <thead>
                       <tr>
-                        <th style="text-align: left; padding: 8px 0; border-bottom: 1px solid #e0e0e0;">Item</th>
-                        <th style="text-align: left; padding: 8px 0; border-bottom: 1px solid #e0e0e0;">Quantity</th>
-                        <th style="text-align: left; padding: 8px 0; border-bottom: 1px solid #e0e0e0;">Available</th>
+                        <th>Item</th>
+                        <th>Requested</th>
+                        <th>Issued</th>
+                        <th>Outstanding</th>
+                        <th>In stock</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -242,9 +301,56 @@ function viewDetails(reqId) {
                     </tbody>
                   </table>
                 </div>
+
+                <h3 style="margin: 20px 0 10px 0;">History Timeline</h3>
+                <ul class="req-timeline">
+                  ${renderTimeline(events)}
+                </ul>
+
+                ${canComment ? `
+                <div class="comment-box">
+                  <textarea id="commentInput" rows="2" placeholder="Add a note or comment…"></textarea>
+                  <button class="btn btn-primary btn-sm" onclick="addRequisitionComment(${req.req_id})">Add note</button>
+                </div>` : ''}
             `;
 
   document.getElementById('viewDetailsModal').classList.add('active');
+}
+
+function renderTimeline(events) {
+  if (!events.length) return '<li class="tl-empty">No history yet</li>';
+  return events
+    .map((e) => {
+      const icon = EVENT_ICON[e.event_type] || '•';
+      const when = e.created_at ? new Date(e.created_at).toLocaleString() : '';
+      const who = e.actor_name || 'System';
+      let headline = e.event_type_display || e.event_type;
+      if (e.from_status && e.to_status && e.event_type !== 'comment') {
+        headline += ` — ${statusLabel(e.from_status)} → ${statusLabel(e.to_status)}`;
+      }
+      const note = e.note
+        ? `<div class="tl-note ${e.event_type === 'comment' ? 'is-comment' : ''}">${escapeHtml(e.note)}</div>`
+        : '';
+      return `
+        <li class="tl-item tl-${e.event_type}">
+          <span class="tl-icon">${icon}</span>
+          <div class="tl-body">
+            <div class="tl-headline">${escapeHtml(headline)}</div>
+            <div class="tl-meta">${escapeHtml(who)} • ${when}</div>
+            ${note}
+          </div>
+        </li>
+      `;
+    })
+    .join('');
+}
+
+async function refreshOpenDetails() {
+  await fetchRequisitions();
+  if (openDetailsReqId != null
+      && document.getElementById('viewDetailsModal').classList.contains('active')) {
+    viewDetails(openDetailsReqId);
+  }
 }
 
 function openNewRequisitionModal() {
@@ -270,6 +376,7 @@ function closeNewRequisitionModal() {
 
 function closeViewDetailsModal() {
   document.getElementById('viewDetailsModal').classList.remove('active');
+  openDetailsReqId = null;
 }
 
 function addItemRow() {
@@ -402,10 +509,10 @@ async function approveRequisition(reqId) {
 
     if (response.ok) {
       showSuccess('Requisition approved successfully');
-      fetchRequisitions();
+      refreshOpenDetails();
     } else {
       const error = await response.json();
-      showError(error.error || 'Failed to approve requisition');
+      showError(error.detail || error.error || 'Failed to approve requisition');
     }
   } catch (error) {
     console.error('Error approving requisition:', error);
@@ -414,20 +521,22 @@ async function approveRequisition(reqId) {
 }
 
 async function rejectRequisition(reqId) {
-  if (!confirm('Are you sure you want to reject this requisition?')) return;
+  const reason = prompt('Reason for rejection (the requester will see this):', '');
+  if (reason === null) return;
 
   try {
     const response = await fetch(`${API_URL}/requisitions/${reqId}/reject/`, {
       method: 'POST',
-      headers: authHeaders()
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ note: reason.trim() })
     });
 
     if (response.ok) {
-      showSuccess('Requisition rejected successfully');
-      fetchRequisitions();
+      showSuccess('Requisition rejected');
+      refreshOpenDetails();
     } else {
       const error = await response.json();
-      showError(error.error || 'Failed to reject requisition');
+      showError(error.detail || error.error || 'Failed to reject requisition');
     }
   } catch (error) {
     console.error('Error rejecting requisition:', error);
@@ -435,25 +544,87 @@ async function rejectRequisition(reqId) {
   }
 }
 
+function summariseIssue(result) {
+  const issued = (result.issued || []).map((r) => `${r.issued}× ${r.item}`).join(', ');
+  const short = (result.shortfalls || [])
+    .map((s) => s.remaining
+      ? `${s.item} (${s.remaining} still outstanding)`
+      : `${s.item} (out of stock)`)
+    .join(', ');
+  let msg = result.fully_issued ? 'All items issued' : 'Partially issued';
+  if (issued) msg += `: ${issued}`;
+  if (short) msg += `. Outstanding: ${short}`;
+  return msg;
+}
+
 async function issueRequisition(reqId) {
-  if (!confirm('Are you sure you want to issue items for this requisition? This will create stock OUT transactions.')) return;
+  if (!confirm('Issue the available stock for this requisition? Items that are out of stock stay outstanding and can be issued later. This creates stock OUT transactions.')) return;
 
   try {
     const response = await fetch(`${API_URL}/requisitions/${reqId}/issue/`, {
       method: 'POST',
-      headers: authHeaders()
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ allow_partial: true })
     });
 
+    const result = await response.json();
     if (response.ok) {
-      showSuccess('Items issued successfully');
-      fetchRequisitions();
+      showSuccess(summariseIssue(result));
+      refreshOpenDetails();
     } else {
-      const error = await response.json();
-      showError(error.error || 'Failed to issue items');
+      showError(result.detail || result.error || 'Failed to issue items');
     }
   } catch (error) {
     console.error('Error issuing items:', error);
     showError('Error issuing items');
+  }
+}
+
+async function issueLine(reqId, reqItemId) {
+  if (!confirm('Issue the available stock for this line item?')) return;
+  try {
+    const response = await fetch(`${API_URL}/requisitions/${reqId}/issue/`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ allow_partial: true, req_item_ids: [reqItemId] })
+    });
+    const result = await response.json();
+    if (response.ok) {
+      showSuccess(summariseIssue(result));
+      refreshOpenDetails();
+    } else {
+      showError(result.detail || result.error || 'Failed to issue item');
+    }
+  } catch (error) {
+    console.error('Error issuing line item:', error);
+    showError('Error issuing item');
+  }
+}
+
+async function addRequisitionComment(reqId) {
+  const input = document.getElementById('commentInput');
+  const note = (input?.value || '').trim();
+  if (!note) {
+    showError('Type a note first');
+    return;
+  }
+  try {
+    const response = await fetch(`${API_URL}/requisitions/${reqId}/comment/`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ note })
+    });
+    if (response.ok) {
+      if (input) input.value = '';
+      showSuccess('Note added');
+      refreshOpenDetails();
+    } else {
+      const error = await response.json();
+      showError(error.detail || 'Failed to add note');
+    }
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    showError('Error adding note');
   }
 }
 
@@ -468,10 +639,10 @@ async function returnRequisition(reqId) {
 
     if (response.ok) {
       showSuccess('Requisition marked as returned');
-      fetchRequisitions();
+      refreshOpenDetails();
     } else {
       const error = await response.json();
-      showError(error.error || 'Failed to mark requisition as returned');
+      showError(error.detail || error.error || 'Failed to mark requisition as returned');
     }
   } catch (error) {
     console.error('Error returning requisition:', error);

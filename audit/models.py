@@ -16,7 +16,9 @@ class AuditLog(models.Model):
 
     class Meta:
         db_table = "audit_log"
-        ordering = ["-timestamp"]
+        # log_id breaks ties: several entries can share a timestamp when they
+        # are written in the same tick, and "-timestamp" alone is then unstable.
+        ordering = ["-timestamp", "-log_id"]
 
     def __str__(self):
         return f"{self.user if self.user else 'Unknown'} - {self.action} at {self.timestamp}"

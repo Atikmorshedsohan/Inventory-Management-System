@@ -107,3 +107,9 @@ td.status-low,
     grid-template-columns: 1fr;
   }
 }
+
+.export-note {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  align-self: center;
+}

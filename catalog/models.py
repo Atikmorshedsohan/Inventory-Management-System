@@ -48,6 +48,10 @@ class Item(models.Model):
     )
     unit = models.CharField(max_length=50)
     quantity = models.IntegerField(default=0)
+    # Stock the item started with that did not arrive through a StockTransaction
+    # (initial count on creation, merged-in pending items). The reconciliation
+    # report treats the ledger balance as ``opening_quantity + IN - OUT + ADJUST``.
+    opening_quantity = models.IntegerField(default=0)
     min_quantity = models.IntegerField(default=10)
     description = models.TextField(blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -55,6 +59,17 @@ class Item(models.Model):
     class Meta:
         db_table = "items"
         ordering = ["item_name"]
+
+    def save(self, *args, **kwargs):
+        # Django < 5.0 does not fold ``auto_now`` fields into ``update_fields``,
+        # so a partial save like ``save(update_fields=["quantity"])`` (used all
+        # over the stock / transfer / issue services) would leave ``updated_at``
+        # stale and the room-wise "sort by last update" would not move. Keep it
+        # fresh on every partial save.
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = {*update_fields, "updated_at"}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.item_name} ({self.unit})"

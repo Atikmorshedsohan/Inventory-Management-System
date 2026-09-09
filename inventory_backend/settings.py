@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'requisitions',
     'keys',
     'reports',
+    'notifications',
 ]
 
 MIDDLEWARE = [
@@ -146,8 +147,8 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,
+    'DEFAULT_PAGINATION_CLASS': 'common.pagination.DefaultPagination',
+    'PAGE_SIZE': 50,
     'EXCEPTION_HANDLER': 'common.exception_handler.custom_exception_handler',
 }
 
@@ -206,3 +207,10 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 
 # For local development, you can switch to console backend to see emails in terminal:
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Reorder alerts
+# When True, a reorder alert also emails every active admin / manager.
+# In-app (dashboard badge) alerts are always created regardless of this flag.
+REORDER_ALERT_EMAILS = os.environ.get('REORDER_ALERT_EMAILS', 'False').lower() in (
+    '1', 'true', 'yes', 'on',
+)

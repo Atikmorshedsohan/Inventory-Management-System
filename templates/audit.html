@@ -14,9 +14,9 @@
       <div class="section">
         <h3>Summary</h3>
         <div class="stat-grid">
-          <div class="stat-card"><div class="stat-title">Total Logs</div><div class="stat-value" id="statTotal">—</div></div>
+          <div class="stat-card"><div class="stat-title">Matching Logs</div><div class="stat-value" id="statTotal">—</div></div>
           <div class="stat-card"><div class="stat-title">Today</div><div class="stat-value" id="statToday">—</div></div>
-          <div class="stat-card"><div class="stat-title">This Week</div><div class="stat-value" id="statWeek">—</div></div>
+          <div class="stat-card"><div class="stat-title">Last 7 Days</div><div class="stat-value" id="statWeek">—</div></div>
           <div class="stat-card"><div class="stat-title">This Month</div><div class="stat-value" id="statMonth">—</div></div>
         </div>
       </div>
@@ -27,13 +27,25 @@
           <select id="userFilter">
             <option value="">All Users</option>
           </select>
+          <select id="actionTypeFilter">
+            <option value="">All Action Types</option>
+          </select>
           <select id="periodFilter">
             <option value="all">All Time</option>
             <option value="today">Today</option>
-            <option value="week">This Week</option>
+            <option value="week">Last 7 Days</option>
             <option value="month">This Month</option>
+            <option value="custom">Custom range…</option>
           </select>
+          <span class="date-range hidden" id="customRange">
+            <input type="date" id="dateFrom" aria-label="From date" />
+            <span class="date-sep">to</span>
+            <input type="date" id="dateTo" aria-label="To date" />
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Reset</button>
+          <button class="btn-export" onclick="exportAuditCsv()">⬇ Export CSV</button>
         </div>
+        <div class="filter-note" id="filterNote"></div>
 
         <div id="loadingState" class="loading">
           <p>Loading audit logs...</p>

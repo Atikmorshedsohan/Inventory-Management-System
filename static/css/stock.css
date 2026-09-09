@@ -61,6 +61,43 @@
 .action-btns .btn-out { background: var(--brand); }
 .action-btns .btn-out:hover { background: var(--brand-hover); }
 
+.action-btns .btn-import { background: var(--info); }
+.action-btns .btn-import:hover { background: #164e8c; }
+
+.action-btns .btn-move { background: #6d28d9; }
+.action-btns .btn-move:hover { background: #571fb0; }
+
+/* Bulk import result panel */
+.import-result {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.import-result .sum-ok { color: var(--success); font-weight: 700; }
+.import-result .sum-bad { color: var(--danger); font-weight: 700; }
+
+.import-result ul {
+  margin: var(--sp-2) 0 0;
+  padding-left: 18px;
+}
+
+.import-result li.row-err { color: var(--danger); }
+.import-result li.row-ok { color: var(--text-muted); }
+
+.import-result .report-toggle {
+  margin-top: var(--sp-2);
+  cursor: pointer;
+  color: var(--info);
+  text-decoration: underline;
+  font-size: var(--fs-xs);
+}
+
 /* ============ Stat cards with usage bars ============ */
 .stats {
   display: grid;

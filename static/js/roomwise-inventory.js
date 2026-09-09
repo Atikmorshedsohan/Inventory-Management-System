@@ -9,9 +9,12 @@ const ROOMWISE_ACTIVITY_URL = '/api/reports/roomwise-activity/';
 let roomKeys = [];
 let keyBorrows = [];
 let activeBorrows = [];
+let myBorrows = [];          // the signed-in viewer's own key borrows, any status
 let selectedRoomForKey = null;
 let selectedBorrowForReturn = null;
 let currentUserId = null;
+
+const BORROW_ACTIVE_STATUSES = ['pending', 'approved', 'borrowed'];
 
 // Inline SVG icon from the sprite defined in base.html
 function icon(name, cls = 'ic') {
@@ -43,21 +46,39 @@ function authHeaders(extra = {}) {
   return headers;
 }
 
+// Pull a human-readable message out of a failed DRF response.
+// DRF errors come back as {"detail": "..."} (or a field map); fall back to raw text.
+async function extractError(res, fallback = 'Request failed') {
+  const raw = await res.text();
+  try {
+    const data = JSON.parse(raw);
+    if (typeof data === 'string') return data;
+    if (data.detail) return data.detail;
+    const first = Object.values(data)[0];
+    if (Array.isArray(first)) return first[0];
+    if (typeof first === 'string') return first;
+  } catch (_) { /* not JSON - use raw text */ }
+  return raw || fallback;
+}
+
+// Reload every key-related list, then re-render the room cards.
+async function refreshKeyData() {
+  await loadRoomKeys();
+  await loadKeyBorrows();
+  await loadActiveBorrows();
+  await loadMyBorrows();
+  await loadAllData();
+}
+
 // Initialize page
 document.addEventListener('DOMContentLoaded', async () => {
   setActiveNav('roomwiseNav');
   await loadUserProfileAndId();
-  await loadRoomKeys();
-  await loadKeyBorrows();
-  await loadActiveBorrows();
-  await loadAllData();
+  await refreshKeyData();
   await loadRecentActivity();
   // Auto-refresh every 60 seconds (1 minute)
   setInterval(async () => {
-    await loadRoomKeys();
-    await loadKeyBorrows();
-    await loadActiveBorrows();
-    await loadAllData();
+    await refreshKeyData();
     await loadRecentActivity();
   }, 60000);
 });
@@ -72,7 +93,10 @@ async function loadUserProfileAndId() {
     if (res.ok) {
       const user = await res.json();
       currentUserId = user.user_id;
-      console.log(` Current user ID: ${currentUserId}`);
+      // base.js also sets this, but it races with our first render - pin it now
+      // so the viewer key actions decide on the right role from the start.
+      if (user.role) userRole = user.role;
+      console.log(` Current user ID: ${currentUserId}, role: ${userRole}`);
     }
   } catch (err) {
     console.error('Failed to load user profile:', err);
@@ -99,7 +123,7 @@ async function loadAllData() {
     console.log(` Final roomsData:`, roomsData ? `${roomsData.length} rooms` : 'empty');
     if (container) container.innerHTML = '';
     if (roomsData && roomsData.length > 0) {
-      renderRooms(roomsData, container);
+      renderRooms(sortRoomsByRecency(roomsData), container);
     } else if (container) {
       container.innerHTML = '<div class="empty" style="padding: 40px; text-align: center;"><h3>No rooms found</h3><p>No room data is available.</p></div>';
     }
@@ -111,6 +135,38 @@ async function loadAllData() {
       errorDiv.textContent = `Error: ${err.message}`;
     }
   }
+}
+
+// Most-recently-updated room first. Rooms with no known update time sink to the
+// bottom; General Storage loses ties to real rooms; then alphabetical.
+function sortRoomsByRecency(rooms) {
+  return [...rooms].sort((a, b) => {
+    const at = a.last_updated ? Date.parse(a.last_updated) : -Infinity;
+    const bt = b.last_updated ? Date.parse(b.last_updated) : -Infinity;
+    if (at !== bt) return bt - at;
+    const aGen = a.room_id == null;
+    const bGen = b.room_id == null;
+    if (aGen !== bGen) return aGen ? 1 : -1;
+    return (a.room_name || '').localeCompare(b.room_name || '');
+  });
+}
+
+function isGeneralStorage(room) {
+  return room.room_id == null || /^general storage/i.test(room.room_name || '');
+}
+
+function relTime(dateStr) {
+  if (!dateStr) return '';
+  const secs = Math.round((Date.now() - Date.parse(dateStr)) / 1000);
+  if (!isFinite(secs)) return '';
+  if (secs < 60) return 'just now';
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hr${hrs === 1 ? '' : 's'} ago`;
+  const days = Math.round(hrs / 24);
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+  return new Date(dateStr).toLocaleDateString();
 }
 
 async function loadRoomwiseData() {
@@ -153,35 +209,49 @@ async function loadAllRoomsAndItems() {
     room_key: room.room_key,
     items: [],
     total_quantity: 0,
-    item_count: 0
+    item_count: 0,
+    last_updated: null
   }));
 
-  // Optionally include unassigned items as a General Storage bucket
+  // Fan every item into its room bucket; unassigned items pool into General
+  // Storage (created only if something actually lands there).
   const itemsResponse = await fetch(ITEMS_URL, { headers: authHeaders() });
   if (itemsResponse.ok) {
     const itemsResult = await itemsResponse.json();
     const items = Array.isArray(itemsResult) ? itemsResult : itemsResult.results || [];
-    const unassignedItems = items.filter(item => !item.room);
-    if (unassignedItems.length > 0) {
-      roomsData.push({
-        room_id: null,
-        room_name: 'General Storage (Unassigned)',
-        room_type: 'storage',
-        location: 'N/A',
-        room_key: false,
-        items: unassignedItems.map(item => ({
-          item_id: item.item_id,
-          item_name: item.item_name,
-          category: item.category_name || item.category || 'Uncategorized',
-          unit: item.unit,
-          quantity: item.quantity,
-          min_quantity: item.min_quantity,
-          is_low_stock: item.quantity <= item.min_quantity
-        })),
-        total_quantity: unassignedItems.reduce((sum, item) => sum + item.quantity, 0),
-        item_count: unassignedItems.length
+    const byRoom = new Map(roomsData.map(r => [r.room_id, r]));
+    let general = null;
+
+    items.forEach(item => {
+      const roomId = (item.room && (item.room.room_id ?? item.room)) ?? null;
+      let bucket = roomId != null ? byRoom.get(roomId) : null;
+      if (!bucket) {
+        if (!general) {
+          general = {
+            room_id: null, room_name: 'General Storage', room_type: 'storage',
+            location: 'N/A', room_key: false, items: [], total_quantity: 0,
+            item_count: 0, last_updated: null
+          };
+          roomsData.push(general);
+        }
+        bucket = general;
+      }
+      bucket.items.push({
+        item_id: item.item_id,
+        item_name: item.item_name,
+        category: item.category_name || (item.category && item.category.category_name) || item.category || 'Uncategorized',
+        unit: item.unit,
+        quantity: item.quantity,
+        min_quantity: item.min_quantity,
+        is_low_stock: item.quantity <= item.min_quantity,
+        updated_at: item.updated_at || null
       });
-    }
+      bucket.total_quantity += item.quantity;
+      bucket.item_count += 1;
+      if (item.updated_at && (!bucket.last_updated || item.updated_at > bucket.last_updated)) {
+        bucket.last_updated = item.updated_at;
+      }
+    });
   }
 
   return roomsData;
@@ -240,6 +310,31 @@ async function loadActiveBorrows() {
   }
 }
 
+// The viewer's own borrow requests (every status). Staff/admin see per-key
+// requests through the pending box instead, so this call is viewer-only.
+async function loadMyBorrows() {
+  if (userRole !== 'viewer') { myBorrows = []; return; }
+  try {
+    const res = await fetch(`${KEY_BORROW_URL}my_requests/`, { headers: authHeaders() });
+    if (!res.ok) {
+      console.warn('My key borrows fetch failed', res.status);
+      return;
+    }
+    const data = await res.json();
+    myBorrows = Array.isArray(data) ? data : data.results || [];
+    console.log(` Loaded ${myBorrows.length} of my key borrows`);
+  } catch (err) {
+    console.error('Failed to load my key borrows', err);
+  }
+}
+
+// The viewer's still-open borrow for a given key, if any.
+function getMyBorrowForKey(keyId) {
+  return myBorrows.find(
+    b => (b.key === keyId || b.key_id === keyId) && BORROW_ACTIVE_STATUSES.includes(b.status)
+  );
+}
+
 // Render room cards
 function renderRooms(roomsData, container) {
   const grid = document.createElement('div');
@@ -278,11 +373,14 @@ function createRoomCard(room) {
   const keyStatus = key ? formatKeyStatus(key.status) : 'No key record';
   const keyState = key ? key.status : 'none';
 
+  const updatedLabel = room.last_updated ? relTime(room.last_updated) : '';
+
   card.innerHTML = `
     <div class="room-card-head">
       <h3 class="room-name">${room.room_name || 'Unknown Room'}</h3>
       <span class="room-type-badge">${room.room_type || 'room'}</span>
     </div>
+    ${updatedLabel ? `<div class="room-updated" title="${new Date(room.last_updated).toLocaleString()}">${icon('clock')}Updated ${updatedLabel}</div>` : ''}
     <div class="room-props">
       ${prop('pin', 'Location', room.location || 'Not specified')}
       ${prop('key', 'Key', keyStatus, 'key-state key-' + keyState)}
@@ -307,25 +405,42 @@ function createRoomCard(room) {
     : null;
 
   if (userRole === 'viewer') {
-    const isKeyAvailable = !activeBorrow && key && key.status === 'available';
-    const isKeyInUse = key && (key.status === 'in_use' || activeBorrow);
+    const myBorrow = key ? getMyBorrowForKey(key.key_id) : null;
 
-    if (isKeyAvailable) {
+    if (myBorrow && myBorrow.status === 'borrowed') {
+      // The key is in this viewer's hands - offer the return.
+      actions.insertAdjacentHTML('beforeend',
+        `<div class="room-note note-warn">${icon('key')}You have this key</div>`);
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-secondary btn-sm';
+      btn.innerHTML = icon('undo') + 'Return Key';
+      btn.addEventListener('click', e => { e.stopPropagation(); openReturnKeyModal(myBorrow); });
+      actions.appendChild(btn);
+    } else if (myBorrow && myBorrow.status === 'approved') {
+      // Approved but not yet collected - let the viewer confirm the handover.
+      actions.insertAdjacentHTML('beforeend',
+        `<div class="room-note note-warn">${icon('check')}Approved &mdash; collect the key to start your borrow</div>`);
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary btn-sm';
+      btn.innerHTML = icon('key') + 'Collect Key';
+      btn.addEventListener('click', e => { e.stopPropagation(); collectKey(myBorrow.borrow_id); });
+      actions.appendChild(btn);
+    } else if (myBorrow && myBorrow.status === 'pending') {
+      actions.insertAdjacentHTML('beforeend',
+        `<div class="room-note note-warn">${icon('clock')}Your key request is awaiting approval</div>`);
+    } else if (activeBorrow) {
+      actions.insertAdjacentHTML('beforeend',
+        `<div class="room-note note-warn">${icon('key')}In use by ${activeBorrow.borrower_name || 'someone'}</div>`);
+    } else if (key && key.status === 'available') {
       const btn = document.createElement('button');
       btn.className = 'btn btn-primary btn-sm';
       btn.innerHTML = icon('key') + 'Request Key';
       btn.addEventListener('click', e => { e.stopPropagation(); openRequestKeyModal(room); });
       actions.appendChild(btn);
-    } else if (isKeyInUse && activeBorrow && activeBorrow.borrower === currentUserId) {
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-secondary btn-sm';
-      btn.innerHTML = icon('undo') + 'Return Key';
-      btn.addEventListener('click', e => { e.stopPropagation(); openReturnKeyModal(activeBorrow); });
-      actions.appendChild(btn);
-    } else if (isKeyInUse && activeBorrow) {
+    } else if (key && key.status === 'reserved') {
       actions.insertAdjacentHTML('beforeend',
-        `<div class="room-note note-warn">${icon('key')}In use by ${activeBorrow.borrower_name || 'someone'}</div>`);
-    } else if (key && key.status !== 'available' && !activeBorrow) {
+        `<div class="room-note note-warn">${icon('key')}Key unavailable &mdash; reserved for another borrower</div>`);
+    } else if (key && key.status !== 'available') {
       actions.insertAdjacentHTML('beforeend',
         `<div class="room-note note-danger">${icon('alert')}Key ${String(key.status).toUpperCase()}</div>`);
     }
@@ -340,15 +455,34 @@ function createRoomCard(room) {
       pending.slice(0, 2).forEach(req => {
         const row = document.createElement('div');
         row.className = 'room-pending-row';
-        const when = req.expected_return_at ? new Date(req.expected_return_at).toLocaleString() : '';
-        row.innerHTML =
-          `<span class="room-pending-info">${req.borrower_name || 'Viewer'} &mdash; ` +
-          `${req.purpose || 'Request'}${when ? ' (' + when + ')' : ''}</span>`;
+
+        const meta = document.createElement('div');
+        meta.className = 'room-pending-meta';
+
+        const name = document.createElement('span');
+        name.className = 'room-pending-name';
+        name.textContent = req.borrower_name || 'Viewer';
+        meta.appendChild(name);
+
+        const subParts = [];
+        if (req.purpose) subParts.push(req.purpose);
+        if (req.expected_return_at) {
+          subParts.push('Due ' + new Date(req.expected_return_at).toLocaleString());
+        }
+        if (subParts.length) {
+          const sub = document.createElement('span');
+          sub.className = 'room-pending-sub';
+          sub.textContent = subParts.join(' · ');
+          meta.appendChild(sub);
+        }
+        row.appendChild(meta);
+
         const btn = document.createElement('button');
         btn.className = 'btn btn-primary btn-sm';
         btn.textContent = 'Approve';
         btn.addEventListener('click', async e => { e.stopPropagation(); await approveKeyRequest(req.borrow_id); });
         row.appendChild(btn);
+
         box.appendChild(row);
       });
       actions.appendChild(box);
@@ -357,11 +491,21 @@ function createRoomCard(room) {
 
   if (!actions.children.length) actions.remove();
 
+  const hasItems = !!(room.items && room.items.length);
+
+  // General Storage opens expanded so a freshly stocked-in item is visible
+  // without a click; every other room stays collapsed until clicked.
+  let expanded = hasItems && isGeneralStorage(room);
+  if (expanded) {
+    card.classList.add('is-expanded');
+    card.appendChild(createItemsList(room.items));
+  }
+
   // Click the card to expand / collapse its item list
-  let expanded = false;
   card.addEventListener('click', () => {
-    if (!room.items || !room.items.length) return;
+    if (!hasItems) return;
     expanded = !expanded;
+    card.classList.toggle('is-expanded', expanded);
     const list = card.querySelector('.room-items-list');
     if (list) {
       list.hidden = !expanded;
@@ -396,6 +540,7 @@ function getKeyForRoom(roomName) {
 function formatKeyStatus(status) {
   if (!status) return 'Unknown';
   if (status === 'available') return 'Available';
+  if (status === 'reserved') return 'Reserved';
   if (status === 'in_use') return 'In Use';
   if (status === 'maintenance') return 'Maintenance';
   if (status === 'lost') return 'Lost';
@@ -413,18 +558,34 @@ async function approveKeyRequest(borrowId) {
       headers: authHeaders({ 'Content-Type': 'application/json' }),
     });
     if (!res.ok) {
-      const detail = await res.text();
-      throw new Error(detail || 'Approve failed');
+      throw new Error(await extractError(res, 'Approve failed'));
     }
     console.log(' Key request approved successfully');
-    await loadRoomKeys();
-    await loadKeyBorrows();
-    await loadActiveBorrows();
+    await refreshKeyData();
     await loadRecentActivity(); // Refresh activity section to show updated key borrow info
-    await loadAllData();
   } catch (err) {
     console.error('Approve request failed', err);
     alert(err.message || 'Approve failed');
+  }
+}
+
+// Viewer confirms they have physically collected an approved key.
+// This is what flips the key to "in use" and unlocks the return option.
+async function collectKey(borrowId) {
+  try {
+    const res = await fetch(`${KEY_BORROW_URL}${borrowId}/pickup/`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+    });
+    if (!res.ok) {
+      throw new Error(await extractError(res, 'Could not collect the key'));
+    }
+    await refreshKeyData();
+    await loadRecentActivity();
+    alert('Key collected. It stays assigned to you until you return it.');
+  } catch (err) {
+    console.error('Collect key failed', err);
+    alert(err.message || 'Could not collect the key');
   }
 }
 
@@ -518,8 +679,7 @@ async function submitKeyRequest(e) {
     });
 
     if (!res.ok) {
-      const detail = await res.text();
-      throw new Error(detail || 'Request failed');
+      throw new Error(await extractError(res, 'Failed to submit request.'));
     }
 
     const result = await res.json();
@@ -528,13 +688,10 @@ async function submitKeyRequest(e) {
     // Clear form
     purposeInput.value = '';
     returnInput.value = '';
-    
+
     // Reload data to show updated status
-    await loadRoomKeys();
-    await loadKeyBorrows();
-    await loadActiveBorrows();
-    await loadAllData();
-    
+    await refreshKeyData();
+
     closeRequestKeyModal();
     alert(`Key request submitted successfully!\nRoom: ${selectedRoomForKey?.room_name}\nStatus: Pending staff approval`);
   } catch (err) {
@@ -597,19 +754,16 @@ async function submitReturnKey(e) {
     });
 
     if (!res.ok) {
-      const detail = await res.text();
-      throw new Error(detail || 'Return failed');
+      throw new Error(await extractError(res, 'Return failed'));
     }
 
     const result = await res.json();
     console.log(' Key returned:', result);
 
     // Reload data to show updated status
-    await loadRoomKeys();
-    await loadKeyBorrows();
-    await loadActiveBorrows();
-    await loadAllData();
-    
+    await refreshKeyData();
+    await loadRecentActivity();
+
     closeReturnKeyModal();
     alert(`Key returned successfully!\nKey: ${selectedBorrowForReturn.key_number}\nLocation: ${locationInput.value}`);
   } catch (err) {

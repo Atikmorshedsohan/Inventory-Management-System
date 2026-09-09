@@ -23,10 +23,165 @@ async function loadDashboard() {
     loadRecentActivity();
     loadRoomStats();
     loadPendingItems(); // Load pending items for admin
+    loadStockMovement();
+    loadLowStock();
   } catch(e) {
     showError('Failed to load dashboard');
     console.error(e);
   }
+}
+
+// ============ Low stock list ============
+
+let lowStockLoaded = false;
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+async function loadLowStock() {
+  const body = document.getElementById('lowStockBody');
+  if (!body) return;
+  try {
+    const res = await fetch(`${API_URL}/reports/low-stock/`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.status === 401) { logout(); return; }
+    if (!res.ok) throw new Error('Request failed');
+
+    const data = await res.json();
+    const items = data.items || [];
+    lowStockLoaded = true;
+
+    const hint = document.getElementById('lowStockHint');
+    if (hint) hint.textContent = items.length ? '— click to view' : '— all good';
+
+    if (!items.length) {
+      body.innerHTML = '<tr><td colspan="7" class="empty">Nothing is below its minimum</td></tr>';
+      return;
+    }
+
+    body.innerHTML = items.map((it) => `
+      <tr class="${it.out_of_stock ? 'row-critical' : ''}">
+        <td><strong>${escapeHtml(it.item_name)}</strong></td>
+        <td>${escapeHtml(it.room_name)}</td>
+        <td>${escapeHtml(it.category)}</td>
+        <td class="num">${it.quantity} ${escapeHtml(it.unit || '')}</td>
+        <td class="num">${it.min_quantity}</td>
+        <td class="num shortage">${it.shortage > 0 ? `-${it.shortage}` : '0'}</td>
+        <td><span class="status-badge ${it.out_of_stock ? 'status-rejected' : 'status-pending'}">
+          ${it.out_of_stock ? 'OUT OF STOCK' : 'LOW'}</span></td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load low stock items:', e);
+    body.innerHTML = '<tr><td colspan="7" class="error">Could not load low stock items</td></tr>';
+  }
+}
+
+function toggleLowStock() {
+  const section = document.getElementById('lowStockSection');
+  if (!section) return;
+  const hidden = section.classList.toggle('hidden');
+  if (!hidden) {
+    if (!lowStockLoaded) loadLowStock();
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// ============ Stock movement chart ============
+
+let movementChart = null;
+
+async function loadStockMovement() {
+  const canvas = document.getElementById('movementChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const days = document.getElementById('movementRange')?.value || 30;
+  try {
+    const res = await fetch(`${API_URL}/reports/stock-movement/?days=${days}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.status === 401) { logout(); return; }
+    if (!res.ok) throw new Error('Request failed');
+
+    const data = await res.json();
+    renderMovementTotals(data);
+
+    // Daily bars get noisy over long windows; switch to lines there.
+    const asLine = data.labels.length > 45;
+    const shortLabels = data.labels.map((iso) => {
+      const d = new Date(`${iso}T00:00:00`);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+
+    if (movementChart) movementChart.destroy();
+    movementChart = new Chart(canvas, {
+      type: asLine ? 'line' : 'bar',
+      data: {
+        labels: shortLabels,
+        datasets: [
+          {
+            label: 'Stock IN',
+            data: data.stock_in,
+            backgroundColor: '#10b981',
+            borderColor: '#10b981',
+            borderRadius: 4,
+            tension: 0.3,
+            fill: false
+          },
+          {
+            label: 'Stock OUT',
+            data: data.stock_out,
+            backgroundColor: '#ef4444',
+            borderColor: '#ef4444',
+            borderRadius: 4,
+            tension: 0.3,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { padding: 15, usePointStyle: true, pointStyle: 'rect' }
+          },
+          tooltip: {
+            callbacks: {
+              title: (ctx) => data.labels[ctx[0].dataIndex],
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y} units`
+            }
+          }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Units' } },
+          x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkipPadding: 16 } }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Failed to load stock movement:', e);
+    const totals = document.getElementById('movementTotals');
+    if (totals) totals.innerHTML = '<span class="error">Could not load stock movement</span>';
+  }
+}
+
+function renderMovementTotals(data) {
+  const el = document.getElementById('movementTotals');
+  if (!el) return;
+  const netClass = data.net > 0 ? 'pos' : (data.net < 0 ? 'neg' : '');
+  el.innerHTML = `
+    <span class="mv in">▼ IN <strong>${data.total_in}</strong></span>
+    <span class="mv out">▲ OUT <strong>${data.total_out}</strong></span>
+    <span class="mv net ${netClass}">NET <strong>${data.net > 0 ? '+' : ''}${data.net}</strong></span>
+    <span class="mv range">${data.start} → ${data.end}</span>
+  `;
 }
 
 async function loadLocations() {

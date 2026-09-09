@@ -30,7 +30,7 @@ async function loadReports() {
     items = itemsResponse.results || itemsResponse;
     transactions = transactionsResponse.results || transactionsResponse;
 
-    renderLocationChart(transactions);
+    renderLocationChart(items);
     renderCategoryChart(items);
     renderMovementChart(transactions);
     renderLowStockTable(items);
@@ -61,22 +61,35 @@ async function loadDashboardStats() {
   }
 }
 
-function renderLocationChart() {
-  const locations = ['Lab 1', 'Lab 2', 'Lab 3', 'Classroom 305', 'Office Room'];
-  const counts = [586, 520, 450, 330, 180];
+function renderLocationChart(itemsData) {
+  // Real per-room totals from the item list (this used to plot hardcoded
+  // placeholder numbers that had nothing to do with the database).
+  const rooms = new Map();
+  (itemsData || []).forEach((item) => {
+    const name = item.room?.room_name || 'Unassigned';
+    const bucket = rooms.get(name) || { items: 0, units: 0 };
+    bucket.items += 1;
+    bucket.units += item.quantity || 0;
+    rooms.set(name, bucket);
+  });
+
+  const sorted = [...rooms.entries()].sort((a, b) => b[1].items - a[1].items);
+  const labels = sorted.map(([name]) => name);
+  const counts = sorted.map(([, v]) => v.items);
+  const units = sorted.map(([, v]) => v.units);
 
   const ctx = document.getElementById('locationChart');
   new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: locations,
+      labels,
       datasets: [
         {
           label: 'Items',
           data: counts,
           backgroundColor: '#3b82f6',
           borderRadius: 8,
-          barThickness: 60
+          maxBarThickness: 60
         }
       ]
     },
@@ -84,13 +97,16 @@ function renderLocationChart() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false }
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: (ctx2) => `${units[ctx2.dataIndex]} units total`
+          }
+        }
       },
       scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { stepSize: 150 }
-        }
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+        x: { grid: { display: false } }
       }
     }
   });

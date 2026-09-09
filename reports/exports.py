@@ -1,209 +1,74 @@
-"""CSV / Excel report builders. Kept separate from the views so the
-file-format details don't clutter the request handlers.
+"""CSV / Excel renderers.
+
+Both take the *same* section list from :mod:`reports.report_data`, so the two
+downloads always carry identical data. Add a section there and it appears in
+both files automatically.
 """
 
 import csv
-from datetime import timedelta
 from io import BytesIO
 
-from django.db.models import Count, F
 from django.http import HttpResponse
 from django.utils import timezone
 
-from catalog.models import Item
-from requisitions.models import Requisition, RequisitionItem
-from stock.models import StockTransaction
+from .report_data import DEFAULT_DAYS, build_report, parse_days  # noqa: F401 (re-exported)
 
-DEFAULT_DAYS = 90
+__all__ = ["parse_days", "build_csv", "build_excel", "DEFAULT_DAYS", "render_csv", "render_excel"]
 
 
-def parse_days(raw, default=DEFAULT_DAYS):
-    try:
-        return int(raw)
-    except (TypeError, ValueError):
-        return default
-
-
-def _low_stock_items():
-    return Item.objects.select_related("category").filter(
-        quantity__lte=F("min_quantity")
-    ).order_by("item_name")
-
-
-def _all_items():
-    return Item.objects.select_related("category").order_by("item_name")
-
-
-def _status_label(item):
-    return "Low Stock" if item.quantity <= item.min_quantity else "Available"
-
-
-def build_csv(days=DEFAULT_DAYS):
-    since = timezone.now() - timedelta(days=days)
-    response = HttpResponse(content_type="text/csv")
+def _filename(prefix, extension):
     stamp = timezone.now().strftime("%Y-%m-%d")
-    response["Content-Disposition"] = f'attachment; filename="CSE_Inventory_Report_{stamp}.csv"'
+    return f"{prefix}_{stamp}.{extension}"
+
+
+# ---------------------------------------------------------------------------
+# Renderers - these know about file formats, nothing about the report content
+# ---------------------------------------------------------------------------
+
+def render_csv(sections, *, filename):
+    """Write ``sections`` as one CSV, each section a titled block."""
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     writer = csv.writer(response)
 
-    writer.writerow(["CSE Inventory Management System - Report"])
-    writer.writerow([f'Generated: {timezone.now().strftime("%Y-%m-%d %H:%M:%S")}'])
-    writer.writerow([f"Period: last {days} days"])
-    writer.writerow([])
-
-    writer.writerow(["LOW STOCK ALERTS"])
-    writer.writerow(["Item Name", "Current Stock", "Minimum Stock", "Shortage", "Category"])
-    for item in _low_stock_items():
-        writer.writerow([
-            item.item_name, item.quantity, item.min_quantity,
-            item.min_quantity - item.quantity,
-            item.category.category_name if item.category else "",
-        ])
-    writer.writerow([])
-
-    writer.writerow(["ITEMS BY CATEGORY"])
-    writer.writerow(["Category", "Count", "Percentage"])
-    total_items = Item.objects.count()
-    cat_rows = (
-        Item.objects.values("category__category_name")
-        .annotate(count=Count("item_id"))
-        .order_by("-count")
-    )
-    for row in cat_rows:
-        count = row["count"]
-        percent = f"{round((count / total_items) * 100, 1) if total_items else 0}%"
-        writer.writerow([row["category__category_name"] or "Uncategorized", count, percent])
-    writer.writerow([])
-
-    writer.writerow(["ALL ITEMS"])
-    writer.writerow(["Item Name", "Category", "Quantity", "Unit", "Min Quantity", "Status", "Updated At"])
-    for item in _all_items():
-        updated = getattr(item, "updated_at", None)
-        writer.writerow([
-            item.item_name,
-            item.category.category_name if item.category else "N/A",
-            item.quantity, item.unit, item.min_quantity, _status_label(item),
-            updated.strftime("%Y-%m-%d %H:%M:%S") if updated else "",
-        ])
-    writer.writerow([])
-
-    writer.writerow(["STOCK TRANSACTIONS (Recent)"])
-    writer.writerow(["Transaction ID", "Item", "Type", "Quantity", "User", "Timestamp", "Notes"])
-    txns = (
-        StockTransaction.objects.select_related("item", "user")
-        .filter(timestamp__gte=since)
-        .order_by("-timestamp")[:500]
-    )
-    for tr in txns:
-        writer.writerow([
-            tr.transaction_id, tr.item.item_name, tr.type, tr.quantity,
-            tr.user.name if tr.user else "",
-            tr.timestamp.strftime("%Y-%m-%d %H:%M:%S"), tr.notes or "",
-        ])
-    writer.writerow([])
-
-    writer.writerow(["REQUISITIONS (Recent)"])
-    writer.writerow(["Req ID", "User", "Status", "Created At", "Purpose"])
-    reqs = (
-        Requisition.objects.select_related("user")
-        .filter(created_at__gte=since)
-        .order_by("-created_at")[:500]
-    )
-    for r in reqs:
-        writer.writerow([
-            r.req_id, r.user.name, r.status,
-            r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            (r.purpose or "").replace("\n", " "),
-        ])
-    writer.writerow([])
-
-    writer.writerow(["REQUISITION ITEMS (Recent)"])
-    writer.writerow(["Req ID", "Item", "Quantity"])
-    req_items = (
-        RequisitionItem.objects.select_related("requisition", "item")
-        .filter(requisition__created_at__gte=since)
-        .order_by("-req_item_id")[:1000]
-    )
-    for ri in req_items:
-        writer.writerow([ri.requisition.req_id, ri.item.item_name, ri.quantity])
+    for index, section in enumerate(sections):
+        if index:
+            writer.writerow([])
+        writer.writerow([section.title])
+        writer.writerow(section.headers)
+        for row in section.rows:
+            writer.writerow(row)
+        if not section.rows:
+            writer.writerow(["(no records)"])
 
     return response
 
 
-def build_excel(days=DEFAULT_DAYS):
+def render_excel(sections, *, filename):
+    """Write ``sections`` as one workbook, each section a worksheet."""
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
 
-    since = timezone.now() - timedelta(days=days)
-    wb = Workbook()
     header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF", size=12)
 
-    def header_row(ws):
+    wb = Workbook()
+    wb.remove(wb.active)  # start clean; every sheet comes from a section
+
+    for section in sections:
+        ws = wb.create_sheet(section.key[:31])
+        ws.append(section.headers)
         for cell in ws[1]:
             cell.fill = header_fill
             cell.font = header_font
             cell.alignment = Alignment(horizontal="center")
 
-    ws_summary = wb.active
-    ws_summary.title = "Summary"
-    ws_summary["A1"] = "CSE Inventory Management System - Report"
-    ws_summary["A1"].font = Font(bold=True, size=14)
-    ws_summary["A2"] = f'Generated: {timezone.now().strftime("%Y-%m-%d %H:%M:%S")}'
-    ws_summary["A3"] = f"Period: last {days} days"
+        for row in section.rows:
+            ws.append(list(row))
+        if not section.rows:
+            ws.append(["(no records)"])
 
-    ws_low = wb.create_sheet("Low Stock")
-    ws_low.append(["Item Name", "Current Stock", "Minimum Stock", "Shortage", "Category"])
-    header_row(ws_low)
-    for item in _low_stock_items():
-        ws_low.append([
-            item.item_name, item.quantity, item.min_quantity,
-            item.min_quantity - item.quantity,
-            item.category.category_name if item.category else "",
-        ])
-
-    ws_items = wb.create_sheet("All Items")
-    ws_items.append(["Item Name", "Category", "Quantity", "Unit", "Min Quantity", "Status", "Updated At"])
-    header_row(ws_items)
-    for item in _all_items():
-        updated = getattr(item, "updated_at", None)
-        ws_items.append([
-            item.item_name,
-            item.category.category_name if item.category else "N/A",
-            item.quantity, item.unit, item.min_quantity, _status_label(item),
-            updated.strftime("%Y-%m-%d %H:%M:%S") if updated else "",
-        ])
-
-    ws_trans = wb.create_sheet("Transactions")
-    ws_trans.append(["Transaction ID", "Item", "Type", "Quantity", "User", "Timestamp", "Notes"])
-    header_row(ws_trans)
-    txns = (
-        StockTransaction.objects.select_related("item", "user")
-        .filter(timestamp__gte=since)
-        .order_by("-timestamp")[:500]
-    )
-    for tr in txns:
-        ws_trans.append([
-            tr.transaction_id, tr.item.item_name, tr.type, tr.quantity,
-            tr.user.name if tr.user else "",
-            tr.timestamp.strftime("%Y-%m-%d %H:%M:%S"), tr.notes or "",
-        ])
-
-    ws_req = wb.create_sheet("Requisitions")
-    ws_req.append(["Req ID", "User", "Status", "Created At", "Purpose"])
-    header_row(ws_req)
-    reqs = (
-        Requisition.objects.select_related("user")
-        .filter(created_at__gte=since)
-        .order_by("-created_at")[:500]
-    )
-    for r in reqs:
-        ws_req.append([
-            r.req_id, r.user.name, r.status,
-            r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            (r.purpose or "").replace("\n", " "),
-        ])
-
-    for ws in (ws_summary, ws_low, ws_items, ws_trans, ws_req):
+        ws.freeze_panes = "A2"
         for column in ws.columns:
             longest = 0
             letter = column[0].column_letter
@@ -218,10 +83,102 @@ def build_excel(days=DEFAULT_DAYS):
     wb.save(buffer)
     buffer.seek(0)
 
-    stamp = timezone.now().strftime("%Y-%m-%d")
     response = HttpResponse(
         buffer.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    response["Content-Disposition"] = f'attachment; filename="CSE_Inventory_Report_{stamp}.xlsx"'
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+# ---------------------------------------------------------------------------
+# The full inventory report
+# ---------------------------------------------------------------------------
+
+def build_csv(days=DEFAULT_DAYS):
+    return render_csv(
+        build_report(days), filename=_filename("CSE_Inventory_Report", "csv")
+    )
+
+
+def build_excel(days=DEFAULT_DAYS):
+    return render_excel(
+        build_report(days), filename=_filename("CSE_Inventory_Report", "xlsx")
+    )
+
+
+# ---------------------------------------------------------------------------
+# The per-room snapshot report
+# ---------------------------------------------------------------------------
+
+def _snapshot_sections():
+    from .selectors import room_snapshot
+
+    from .report_data import Section
+
+    snapshot = room_snapshot()
+    overview = Section(
+        "Snapshot Summary",
+        "ROOM INVENTORY SNAPSHOT",
+        ["Metric", "Value"],
+        [
+            ["Snapshot taken", snapshot["generated_at"].strftime("%Y-%m-%d %H:%M:%S")],
+            ["Rooms", snapshot["room_count"]],
+            ["Distinct items", snapshot["item_count"]],
+            ["Total units on hand", snapshot["total_quantity"]],
+            ["Low stock items", snapshot["low_stock_count"]],
+        ],
+    )
+
+    detail_rows = []
+    for room in snapshot["rooms"]:
+        for item in room["items"]:
+            detail_rows.append(
+                [
+                    room["room_name"],
+                    room["room_type"] or "",
+                    room["location"] or "",
+                    item["item_name"],
+                    item["category"],
+                    item["quantity"],
+                    item["unit"],
+                    item["min_quantity"],
+                    "Low Stock" if item["is_low_stock"] else "OK",
+                ]
+            )
+    detail = Section(
+        "By Room",
+        "ITEMS BY ROOM",
+        ["Room", "Room Type", "Location", "Item", "Category", "Quantity", "Unit", "Min Quantity", "Status"],
+        detail_rows,
+    )
+
+    totals = Section(
+        "Room Totals",
+        "ROOM TOTALS",
+        ["Room", "Room Type", "Location", "Distinct Items", "Total Units", "Low Stock Items"],
+        [
+            [
+                room["room_name"],
+                room["room_type"] or "",
+                room["location"] or "",
+                room["item_count"],
+                room["total_quantity"],
+                room["low_stock_count"],
+            ]
+            for room in snapshot["rooms"]
+        ],
+    )
+    return [overview, totals, detail]
+
+
+def build_snapshot_csv():
+    return render_csv(
+        _snapshot_sections(), filename=_filename("CSE_Room_Snapshot", "csv")
+    )
+
+
+def build_snapshot_excel():
+    return render_excel(
+        _snapshot_sections(), filename=_filename("CSE_Room_Snapshot", "xlsx")
+    )

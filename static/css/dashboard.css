@@ -214,3 +214,81 @@
   gap: var(--sp-2);
   flex-shrink: 0;
 }
+
+/* ============ Clickable low-stock card ============ */
+.stats-grid .stat-card.clickable {
+  cursor: pointer;
+}
+
+.stats-grid .stat-card.clickable:hover {
+  border-color: var(--warning);
+}
+
+.stats-grid .stat-card.clickable:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.stat-hint {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+/* ============ Section heading with a control on the right ============ */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.section-head h3 {
+  margin: 0;
+}
+
+/* ============ Low-stock table ============ */
+td.num, th.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+td.shortage {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+tr.row-critical td {
+  background: var(--danger-bg);
+}
+
+/* ============ Stock movement chart ============ */
+.chart-canvas {
+  position: relative;
+  width: 100%;
+}
+
+.movement-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  align-items: center;
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-sm);
+}
+
+.movement-totals .mv {
+  color: var(--text-muted);
+}
+
+.movement-totals .mv.in { color: var(--success); }
+.movement-totals .mv.out { color: var(--danger); }
+.movement-totals .mv.net.pos { color: var(--success); }
+.movement-totals .mv.net.neg { color: var(--danger); }
+
+.movement-totals .mv.range {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+}

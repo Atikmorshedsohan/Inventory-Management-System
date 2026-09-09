@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Reconciliation{% endblock %}
+
+{% block page_title %}Stock Reconciliation{% endblock %}
+{% block page_subtitle %}Item balances vs. the sum of every stock transaction{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="section">
+  <h3>Summary</h3>
+  <div class="stat-grid" id="summaryGrid">
+    <div class="stat-card"><div class="stat-title">Items Checked</div><div class="stat-value" id="statTotal">—</div></div>
+    <div class="stat-card"><div class="stat-title">Balanced</div><div class="stat-value ok" id="statBalanced">—</div></div>
+    <div class="stat-card"><div class="stat-title">Mismatched</div><div class="stat-value bad" id="statMismatched">—</div></div>
+    <div class="stat-card"><div class="stat-title">Last Checked</div><div class="stat-value" id="statGenerated" style="font-size:14px;">—</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="🔍 Search item..." />
+    <label class="chk"><input type="checkbox" id="mismatchOnly" /> Show mismatches only</label>
+    <button class="btn btn-secondary btn-sm" onclick="refresh()">↻ Re-check</button>
+    <button class="btn btn-secondary btn-sm" onclick="downloadCsv()">⬇ Export CSV</button>
+  </div>
+
+  <div id="banner" class="recon-banner hidden"></div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Room</th>
+          <th class="num">System Qty</th>
+          <th class="num">Opening</th>
+          <th class="num">+ IN</th>
+          <th class="num">− OUT</th>
+          <th class="num">± ADJ</th>
+          <th class="num">Expected</th>
+          <th class="num">Discrepancy</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="reconBody">
+        <tr><td colspan="11" class="loading">Loading reconciliation…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/reconciliation.js' %}" defer></script>
+{% endblock %}

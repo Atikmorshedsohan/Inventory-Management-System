@@ -4,6 +4,7 @@ let categories = [];
 let rooms = [];
 let pendingTransactions = [];
 let currentRejection = null;
+let importBatches = [];
 
 /**
  * Stock Page - Specific functionality
@@ -29,7 +30,7 @@ function applyStockPermissions() {
 
 async function loadRooms() {
   try {
-    const res = await fetch(`${API_URL}/rooms/`, {
+    const res = await fetch(`${API_URL}/rooms/?page_size=1000`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const data = await res.json();
@@ -54,7 +55,7 @@ async function loadRooms() {
 
 async function loadCategories() {
   try {
-    const res = await fetch(`${API_URL}/categories/`, {
+    const res = await fetch(`${API_URL}/categories/?page_size=1000`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const data = await res.json();
@@ -75,7 +76,7 @@ async function loadCategories() {
 
 async function loadItems() {
   try {
-    const res = await fetch(`${API_URL}/items/`, {
+    const res = await fetch(`${API_URL}/items/?page_size=2000`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const data = await res.json();
@@ -96,7 +97,7 @@ async function loadItems() {
 
 async function loadTransactions() {
   try {
-    const res = await fetch(`${API_URL}/stock-transactions/`, {
+    const res = await fetch(`${API_URL}/stock-transactions/?page_size=2000&ordering=-timestamp`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const data = await res.json();
@@ -376,6 +377,267 @@ async function submitReject(event) {
   }
 }
 
+/* ============ Bulk Stock Import ============ */
+
+function openBulkImportModal() {
+  document.getElementById('importFile').value = '';
+  const result = document.getElementById('importResult');
+  result.classList.add('hidden');
+  result.innerHTML = '';
+  document.getElementById('importSubmitBtn').disabled = false;
+  document.getElementById('bulkImportModal').classList.add('show');
+}
+
+function closeBulkImportModal() {
+  document.getElementById('bulkImportModal').classList.remove('show');
+}
+
+async function downloadImportTemplate() {
+  try {
+    const res = await fetch(`${API_URL}/stock/bulk-import/`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Could not fetch template');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'stock_import_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(`Error: ${e.message}`);
+  }
+}
+
+function renderImportResult(batch) {
+  const result = document.getElementById('importResult');
+  const rows = batch.report || [];
+  const errors = rows.filter((r) => r.status === 'error');
+  const ok = rows.filter((r) => r.status === 'ok');
+
+  result.classList.remove('hidden');
+  result.innerHTML = `
+    <div>
+      <span class="sum-ok">${batch.success_count} imported</span> &nbsp;/&nbsp;
+      <span class="sum-bad">${batch.error_count} failed</span>
+      &nbsp;of ${batch.total_rows} row(s).
+    </div>
+    ${errors.length ? `<ul>${errors.map((r) => `<li class="row-err">Row ${r.row}: ${r.message}</li>`).join('')}</ul>` : ''}
+    ${ok.length ? `<div class="report-toggle" onclick="this.nextElementSibling.hidden = !this.nextElementSibling.hidden">Show ${ok.length} successful row(s)</div>
+      <ul hidden>${ok.map((r) => `<li class="row-ok">Row ${r.row}: ${r.item} — ${r.message}</li>`).join('')}</ul>` : ''}
+  `;
+}
+
+async function submitBulkImport() {
+  const fileInput = document.getElementById('importFile');
+  const file = fileInput.files[0];
+  if (!file) {
+    alert('Choose a CSV file first.');
+    return;
+  }
+  const btn = document.getElementById('importSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Importing…';
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const headers = { Authorization: `Bearer ${token}` };
+    if (csrftoken) headers['X-CSRFToken'] = csrftoken;
+
+    const res = await fetch(`${API_URL}/stock/bulk-import/`, {
+      method: 'POST',
+      headers,
+      body: form
+    });
+    const data = await res.json();
+    if (res.status === 400 && data.detail && !data.report) {
+      throw new Error(data.detail);
+    }
+    renderImportResult(data);
+    await loadItems();
+    await loadTransactions();
+    await loadImportBatches();
+    if (typeof loadNotificationBadge === 'function') loadNotificationBadge();
+  } catch (e) {
+    alert(`Error: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Import';
+  }
+}
+
+async function loadImportBatches() {
+  const tbody = document.getElementById('importsTable');
+  if (!tbody) return;
+  try {
+    const res = await fetch(`${API_URL}/stock-import-batches/?page_size=200`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="7" class="empty">—</td></tr>'; return; }
+    const data = await res.json();
+    importBatches = data.results || data;
+    if (!importBatches.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No imports yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = importBatches.map((b, i) => `
+      <tr>
+        <td><strong>${b.filename || 'upload.csv'}</strong></td>
+        <td>${b.total_rows}</td>
+        <td style="color:var(--success);font-weight:600;">${b.success_count}</td>
+        <td style="color:${b.error_count ? 'var(--danger)' : 'inherit'};font-weight:600;">${b.error_count}</td>
+        <td>${formatDate(b.created_at)}</td>
+        <td>${b.uploaded_by_name || 'System'}</td>
+        <td>${b.error_count ? `<button class="btn-reject" style="padding:4px 10px;background:#64748b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;" onclick="showBatchErrors(${i})">Errors</button>` : ''}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('Error loading import batches:', e);
+  }
+}
+
+function showBatchErrors(index) {
+  const batch = importBatches[index];
+  const errs = (batch && batch.report ? batch.report : []).filter((r) => r.status === 'error');
+  alert(errs.length ? errs.map((r) => `Row ${r.row}: ${r.message}`).join('\n') : 'No errors recorded.');
+}
+
+/* ============ Move Item (transfer between rooms) ============ */
+
+function openTransferModal() {
+  const itemSel = document.getElementById('transferItem');
+  const roomSel = document.getElementById('transferToRoom');
+
+  itemSel.innerHTML = '<option value="">-- Choose an item --</option>';
+  items.forEach((it) => {
+    const id = it.id || it.item_id;
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = `${it.item_name} (${it.quantity} in ${it.room?.room_name || 'Unassigned'})`;
+    itemSel.appendChild(opt);
+  });
+
+  roomSel.innerHTML = '<option value="">-- Choose a room --</option>';
+  rooms.forEach((r) => {
+    const opt = document.createElement('option');
+    opt.value = r.room_id;
+    opt.textContent = r.room_name;
+    roomSel.appendChild(opt);
+  });
+
+  document.getElementById('transferQty').value = '';
+  document.getElementById('transferRemarks').value = '';
+  document.getElementById('transferCurrent').textContent = 'Current room and quantity will show here.';
+  document.getElementById('transferModal').classList.add('show');
+}
+
+function closeTransferModal() {
+  document.getElementById('transferModal').classList.remove('show');
+}
+
+function selectedTransferItem() {
+  const id = parseInt(document.getElementById('transferItem').value, 10);
+  return items.find((it) => (it.id || it.item_id) === id);
+}
+
+function onTransferItemChange() {
+  const it = selectedTransferItem();
+  const hint = document.getElementById('transferCurrent');
+  const qty = document.getElementById('transferQty');
+  if (!it) {
+    hint.textContent = 'Current room and quantity will show here.';
+    qty.removeAttribute('max');
+    return;
+  }
+  hint.textContent = `Currently ${it.quantity} unit(s) in ${it.room?.room_name || 'Unassigned'}. `
+    + `Leave quantity blank to move all ${it.quantity}.`;
+  qty.max = it.quantity;
+  qty.placeholder = `Full quantity (${it.quantity})`;
+}
+
+async function submitTransfer(event) {
+  event.preventDefault();
+  const it = selectedTransferItem();
+  const toRoom = parseInt(document.getElementById('transferToRoom').value, 10);
+  const qtyRaw = document.getElementById('transferQty').value.trim();
+
+  if (!it || !toRoom) {
+    alert('Pick an item and a destination room.');
+    return;
+  }
+
+  const payload = {
+    item: it.id || it.item_id,
+    to_room: toRoom,
+    remarks: document.getElementById('transferRemarks').value.trim()
+  };
+  if (qtyRaw) payload.quantity = parseInt(qtyRaw, 10);
+
+  try {
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    if (csrftoken) headers['X-CSRFToken'] = csrftoken;
+
+    const res = await fetch(`${API_URL}/stock/transfer/`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Transfer failed');
+
+    closeTransferModal();
+    await loadItems();
+    await loadTransactions();
+    await loadTransfers();
+    if (typeof loadNotificationBadge === 'function') loadNotificationBadge();
+    alert(
+      `Moved ${data.quantity} × ${data.item_name} from ${data.from_room_name || 'Unassigned'} `
+      + `to ${data.to_room_name}. `
+      + `Source: ${data.source_qty_before}→${data.source_qty_after}, `
+      + `Destination: ${data.dest_qty_before}→${data.dest_qty_after}.`
+    );
+  } catch (e) {
+    alert(`Error: ${e.message}`);
+  }
+}
+
+async function loadTransfers() {
+  const tbody = document.getElementById('transfersTable');
+  if (!tbody) return;
+  try {
+    const res = await fetch(`${API_URL}/room-item-history/?ordering=-moved_at&page_size=500`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) { tbody.innerHTML = '<tr><td colspan="8" class="empty">—</td></tr>'; return; }
+    const data = await res.json();
+    const moves = data.results || data;
+    if (!moves.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No transfers recorded</td></tr>';
+      return;
+    }
+    tbody.innerHTML = moves.map((m) => {
+      const snap = (a, b) => (a === null || a === undefined) ? '—' : `${a} → ${b}`;
+      const typeBadge = `<span class="badge ${m.transfer_type === 'partial' ? 'badge-out' : 'badge-in'}">${m.transfer_type || 'full'}</span>`;
+      return `<tr>
+        <td><strong>${m.item_name || 'Item #' + m.item}</strong> ${typeBadge}</td>
+        <td>${m.from_room_name || 'Unassigned'}</td>
+        <td>${m.to_room_name || 'Unassigned'}</td>
+        <td>${m.quantity ?? '—'}</td>
+        <td>${snap(m.source_qty_before, m.source_qty_after)}</td>
+        <td>${snap(m.dest_qty_before, m.dest_qty_after)}</td>
+        <td>${formatDate(m.moved_at)}</td>
+        <td>${m.user_name || 'System'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    console.error('Error loading transfers:', e);
+  }
+}
+
 async function init() {
   setActiveNav('stockNav');
   await loadUserProfile();
@@ -384,7 +646,9 @@ async function init() {
   await loadCategories();
   await loadItems();
   await loadTransactions();
-  
+  await loadTransfers();
+  await loadImportBatches();
+
   // Load pending transactions if admin - check after profile is loaded
   if (userRole === 'admin') {
     console.log('Loading pending transactions for role:', userRole);

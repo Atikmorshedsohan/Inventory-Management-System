@@ -7,19 +7,22 @@ Every domain app contributes its view sets here so the public URL layout
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from accounts.views import UserViewSet
+from accounts.views import LoginEventViewSet, UserViewSet
 from audit.views import AuditLogViewSet
 from catalog.views import CategoryViewSet, ItemViewSet, PendingItemViewSet, RoomViewSet
 from keys.views import KeyAuditLogViewSet, KeyBorrowViewSet, RoomKeyViewSet
+from notifications.views import NotificationViewSet
 from requisitions.views import RequisitionItemViewSet, RequisitionViewSet
 from stock.views import (
     PendingStockTransactionViewSet,
     RoomItemHistoryViewSet,
+    StockImportBatchViewSet,
     StockTransactionViewSet,
 )
 
 router = DefaultRouter()
 router.register(r"users", UserViewSet)
+router.register(r"login-events", LoginEventViewSet)
 router.register(r"categories", CategoryViewSet)
 router.register(r"items", ItemViewSet)
 router.register(r"rooms", RoomViewSet)
@@ -27,9 +30,11 @@ router.register(r"room-item-history", RoomItemHistoryViewSet)
 router.register(r"requisitions", RequisitionViewSet)
 router.register(r"requisition-items", RequisitionItemViewSet)
 router.register(r"stock-transactions", StockTransactionViewSet)
+router.register(r"stock-import-batches", StockImportBatchViewSet)
 router.register(r"pending-stock-transactions", PendingStockTransactionViewSet)
 router.register(r"pending-items", PendingItemViewSet)
 router.register(r"audit-logs", AuditLogViewSet)
+router.register(r"notifications", NotificationViewSet, basename="notification")
 router.register(r"room-keys", RoomKeyViewSet)
 router.register(r"key-audit-logs", KeyAuditLogViewSet)
 router.register(r"key-borrows", KeyBorrowViewSet)
@@ -37,5 +42,6 @@ router.register(r"key-borrows", KeyBorrowViewSet)
 urlpatterns = [
     path("", include("accounts.urls")),
     path("", include("reports.urls")),
+    path("", include("stock.urls")),
     path("", include(router.urls)),
 ]

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Room Snapshot{% endblock %}
+
+{% block page_title %}Room Inventory Snapshot{% endblock %}
+{% block page_subtitle %}Exactly what is in each room, right now{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/room-snapshot.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="section no-print">
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="🔍 Filter items or rooms..." />
+    <select id="roomFilter" class="filter-select">
+      <option value="">All rooms</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="lowOnly" /> Low stock only</label>
+    <button class="btn btn-secondary btn-sm" onclick="loadSnapshot()">↻ Refresh</button>
+    <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Print</button>
+    <button class="btn btn-secondary btn-sm" onclick="exportSnapshot('csv')">⬇ CSV</button>
+    <button class="btn btn-primary btn-sm" onclick="exportSnapshot('excel')">⬇ Excel</button>
+  </div>
+</div>
+
+<!-- Print-only header -->
+<div class="print-header">
+  <h1>CSE Inventory — Room Snapshot</h1>
+  <p id="printStamp"></p>
+</div>
+
+<div class="section">
+  <div class="snapshot-meta" id="snapshotMeta">Loading snapshot…</div>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-title">Rooms</div><div class="stat-value" id="statRooms">—</div></div>
+    <div class="stat-card"><div class="stat-title">Distinct Items</div><div class="stat-value" id="statItems">—</div></div>
+    <div class="stat-card"><div class="stat-title">Total Units</div><div class="stat-value" id="statUnits">—</div></div>
+    <div class="stat-card"><div class="stat-title">Low Stock</div><div class="stat-value bad" id="statLow">—</div></div>
+  </div>
+</div>
+
+<div id="roomsContainer">
+  <div class="section"><div class="loading">Loading rooms…</div></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/room-snapshot.js' %}" defer></script>
+{% endblock %}

@@ -1,13 +1,35 @@
 from rest_framework import serializers
 
-from .models import User
+from .models import LoginEvent, User
+
+
+class LoginEventSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source="user.name", read_only=True, default=None)
+    user_role = serializers.CharField(source="user.role", read_only=True, default=None)
+    event_display = serializers.CharField(source="get_event_display", read_only=True)
+
+    class Meta:
+        model = LoginEvent
+        fields = [
+            "event_id", "user", "user_name", "user_role", "email",
+            "event", "event_display", "successful", "ip_address", "client",
+            "user_agent", "reason", "timestamp",
+        ]
+        read_only_fields = fields
 
 
 class UserSerializer(serializers.ModelSerializer):
+    role_display = serializers.CharField(source="get_role_display", read_only=True)
+
     class Meta:
         model = User
-        fields = ["user_id", "name", "email", "phone_number", "department", "role", "created_at"]
-        read_only_fields = ["user_id", "created_at", "role"]
+        fields = [
+            "user_id", "name", "email", "phone_number", "department",
+            "role", "role_display", "is_active", "created_at",
+        ]
+        # ``role`` stays read-only here on purpose: it only changes through the
+        # audited, admin-only ``/users/{id}/set_role/`` action.
+        read_only_fields = ["user_id", "created_at", "role", "role_display", "is_active"]
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):

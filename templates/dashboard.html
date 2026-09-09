@@ -22,14 +22,15 @@
     <div class="stat-value" id="total_items">0</div>
     <div class="stat-label">Total Items</div>
   </div>
-  <div class="stat-card warning">
+  <div class="stat-card warning clickable" id="lowStockCard" onclick="toggleLowStock()"
+       role="button" tabindex="0" title="Show which items are low">
     <div class="stat-card-top">
       <div class="stat-card-icon">
         <svg viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
       </div>
     </div>
     <div class="stat-value" id="low_stock_items">0</div>
-    <div class="stat-label">Low Stock Items</div>
+    <div class="stat-label">Low Stock Items <span class="stat-hint" id="lowStockHint">— click to view</span></div>
   </div>
   <div class="stat-card success">
     <div class="stat-card-top">
@@ -48,6 +49,47 @@
     </div>
     <div class="stat-value" id="available_items">0</div>
     <div class="stat-label">Available Items</div>
+  </div>
+</div>
+
+<!-- Low stock detail, revealed by clicking the Low Stock Items card -->
+<div class="section hidden" id="lowStockSection">
+  <div class="section-head">
+    <h3>Low Stock Items</h3>
+    <button class="btn btn-ghost btn-sm" onclick="toggleLowStock()">Hide</button>
+  </div>
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Room</th>
+          <th>Category</th>
+          <th class="num">In Stock</th>
+          <th class="num">Minimum</th>
+          <th class="num">Shortage</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="lowStockBody">
+        <tr><td colspan="7" class="loading">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head">
+    <h3>Stock Movement</h3>
+    <select id="movementRange" class="filter-select" onchange="loadStockMovement()">
+      <option value="7">Last 7 days</option>
+      <option value="30" selected>Last 30 days</option>
+      <option value="90">Last 90 days</option>
+    </select>
+  </div>
+  <div class="movement-totals" id="movementTotals"></div>
+  <div class="chart-canvas" style="height: 280px;">
+    <canvas id="movementChart"></canvas>
   </div>
 </div>
 
@@ -98,5 +140,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="{% static 'js/dashboard.js' %}" defer></script>
 {% endblock %}

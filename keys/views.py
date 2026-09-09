@@ -103,14 +103,25 @@ class KeyBorrowViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def pickup(self, request, pk=None):
+        """Confirm the physical handover of an approved key."""
         borrow = self.get_object()
         if borrow.borrower != request.user and request.user.role not in _KEY_STAFF:
             return Response(
                 {"detail": "You can only pick up your own keys"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        borrow = services.pickup_borrow(borrow=borrow, actor=request.user)
+        borrow = services.confirm_pickup(
+            borrow=borrow,
+            actor=request.user,
+            notes=request.data.get("handover_notes") or request.data.get("notes", ""),
+        )
         return Response(self.get_serializer(borrow).data, status=status.HTTP_200_OK)
+
+    # ``confirm_pickup`` reads better from a UI; same handler as ``pickup``.
+    @action(detail=True, methods=["post"], url_path="confirm-pickup",
+            permission_classes=[IsAuthenticated])
+    def confirm_pickup(self, request, pk=None):
+        return self.pickup(request, pk=pk)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def return_key(self, request, pk=None):
@@ -179,6 +190,18 @@ class KeyBorrowViewSet(viewsets.ModelViewSet):
 
         pending = pending.order_by("requested_at")
         return Response(self.get_serializer(pending, many=True).data)
+
+    @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
+    def awaiting_pickup(self, request):
+        """Approved requests whose key has not been collected yet."""
+        borrows = KeyBorrow.objects.filter(status="approved").select_related(
+            "key", "borrower", "approver"
+        )
+        if request.user.role not in _KEY_STAFF:
+            borrows = borrows.filter(borrower=request.user)
+        return Response(
+            self.get_serializer(borrows.order_by("approved_at"), many=True).data
+        )
 
     @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
     def overdue_keys(self, request):

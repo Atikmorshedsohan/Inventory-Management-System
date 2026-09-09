@@ -78,6 +78,19 @@ function clearError() {
  * Logout user
  */
 function logout() {
+  // Best-effort: record the sign-out for the security log, then clear tokens
+  // regardless of whether that call succeeded. keepalive lets it survive the
+  // navigation that follows.
+  if (token) {
+    try {
+      fetch(`${API_URL}/auth/logout/`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token },
+        keepalive: true
+      }).catch(() => {});
+    } catch (e) { /* never block sign-out */ }
+  }
+
   localStorage.removeItem('access');
   localStorage.removeItem('refresh');
   sessionStorage.removeItem('access');
@@ -91,6 +104,7 @@ function logout() {
  * Apply user information to UI
  */
 function applyUserUI(user) {
+  currentUserData = user;
   const name = user.name || 'User';
   const role = user.role || 'staff';
   const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
@@ -105,11 +119,23 @@ function applyUserUI(user) {
   
   userRole = role;
   
+  // Reconciliation is an admin/manager tool.
+  const reconciliationNav = document.getElementById('reconciliationNav');
+  if (reconciliationNav) {
+    reconciliationNav.style.display = (userRole === 'admin' || userRole === 'manager') ? '' : 'none';
+  }
+
+  // Role management and the security page are admin-only.
+  ['usersNav', 'securityNav'].forEach((id) => {
+    const nav = document.getElementById(id);
+    if (nav) nav.style.display = userRole === 'admin' ? '' : 'none';
+  });
+
   // Hide restricted pages for viewers only
   if (userRole === 'viewer') {
     const addBtn = document.getElementById('addBtn');
     if (addBtn) addBtn.style.display = 'none';
-    
+
     // Hide requisitions and audit log navigation for viewers
     const requisitionsNav = document.getElementById('requisitionsNav');
     const auditNav = document.getElementById('auditNav');
@@ -157,6 +183,92 @@ async function loadUserProfile() {
     applyUserUI(user);
   } catch (e) {
     console.error('Failed to load user profile:', e);
+  }
+}
+
+// ============ Activity log rendering (shared) ============
+
+const ACTION_TYPE_LABELS = {
+  stock: 'Stock',
+  transfer: 'Transfer',
+  reconcile: 'Reconcile',
+  role: 'Role',
+  approve: 'Approved',
+  reject: 'Rejected',
+  issue: 'Issued',
+  return: 'Returned',
+  create: 'Created',
+  comment: 'Comment',
+  auth: 'Account',
+  update: 'Updated',
+  delete: 'Deleted',
+  other: 'Other'
+};
+
+/**
+ * Escape text before putting it into innerHTML.
+ */
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+/**
+ * Render audit entries into a <ul>. Shared by the profile modal and the
+ * Users page so both look the same.
+ */
+function renderActivityLog(listEl, entries, emptyText = 'No recorded activity yet') {
+  if (!listEl) return;
+  if (!entries || !entries.length) {
+    listEl.innerHTML = `<li class="act-empty">${escapeHtml(emptyText)}</li>`;
+    return;
+  }
+  listEl.innerHTML = entries.map((entry) => {
+    const type = entry.action_type || 'other';
+    return `
+      <li class="act-item">
+        <span class="act-badge act-${type}">${ACTION_TYPE_LABELS[type] || type}</span>
+        <span class="act-text">${escapeHtml(entry.action)}</span>
+        <span class="act-time">${formatDate(entry.timestamp)}</span>
+      </li>
+    `;
+  }).join('');
+}
+
+/**
+ * Fetch one user's recent audit entries.
+ */
+async function fetchUserActivity(userId, limit = 8) {
+  const res = await fetch(`${API_URL}/users/${userId}/activity/?limit=${limit}`, {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  if (!res.ok) throw new Error('Could not load activity');
+  return res.json();
+}
+
+// ============ Notification badge ============
+
+/**
+ * Refresh the header bell's unread count.
+ */
+async function loadNotificationBadge() {
+  const badge = document.getElementById('notifBadge');
+  if (!badge || !token) return;
+  try {
+    const res = await fetch(`${API_URL}/notifications/unread_count/`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) return;
+    const { count } = await res.json();
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch (e) {
+    /* silent - the bell just stays as-is */
   }
 }
 
@@ -328,6 +440,39 @@ async function saveProfileChanges(event) {
 function openProfileModal() {
   const modal = document.getElementById('profileModal');
   if (modal) modal.classList.add('show');
+  loadProfileActivity();
+}
+
+/**
+ * Fill the "Recent Activity" block in the profile modal.
+ */
+async function loadProfileActivity() {
+  const list = document.getElementById('profileActivityList');
+  if (!list) return;
+
+  const userId = currentUserData?.user_id;
+  if (!userId) {
+    list.innerHTML = '<li class="act-empty">Sign-in details still loading&hellip;</li>';
+    return;
+  }
+
+  list.innerHTML = '<li class="act-empty">Loading&hellip;</li>';
+  try {
+    const data = await fetchUserActivity(userId, 8);
+    renderActivityLog(list, data.results, 'You have no recorded activity yet');
+
+    // Admins and managers can open the full, filterable trail.
+    const more = document.getElementById('profileActivityMore');
+    if (more) {
+      const canSeeAudit = userRole === 'admin' || userRole === 'manager';
+      more.classList.toggle('hidden', !(canSeeAudit && data.total > 8));
+      more.href = `/audit/?user=${userId}`;
+      more.textContent = `View all ${data.total}`;
+    }
+  } catch (e) {
+    console.error('Failed to load profile activity:', e);
+    list.innerHTML = '<li class="act-empty">Could not load activity</li>';
+  }
 }
 
 /**
@@ -349,7 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSidebarToggle();
   updateDate();
   loadUserProfile();
-  
+
+  // Notification badge: initial load + light polling
+  loadNotificationBadge();
+  setInterval(loadNotificationBadge, 60000);
+
   // Attach profile edit form handler
   const profileEditForm = document.getElementById('profileEditForm');
   if (profileEditForm) {

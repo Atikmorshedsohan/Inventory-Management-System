@@ -39,6 +39,33 @@ class NoDeletePermission(BasePermission):
         return getattr(request.user, "role", "viewer") == "admin"
 
 
+class AdminOnlyPermission(BasePermission):
+    """Only ``admin`` may touch this resource at all, reads included."""
+
+    message = "Only admins can access this."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        return getattr(user, "role", "viewer") == "admin"
+
+
+class AdminWritePermission(BasePermission):
+    """Reads follow the other permission classes; every write needs ``admin``.
+
+    Used for user administration, where ``RolePermission`` alone would let
+    managers and staff create or edit other people's accounts.
+    """
+
+    message = "Only admins can make changes here."
+
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return True
+        return getattr(request.user, "role", "viewer") == "admin"
+
+
 class NotViewerPermission(BasePermission):
     """Deny ``viewer`` role entirely (used for requisitions and audit logs)."""
 

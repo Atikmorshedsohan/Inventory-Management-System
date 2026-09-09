@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Notifications{% endblock %}
+
+{% block page_title %}Notifications{% endblock %}
+{% block page_subtitle %}Reorder alerts and system messages{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="section">
+  <div class="controls">
+    <select id="filterSelect" class="filter-select">
+      <option value="all" selected>All</option>
+      <option value="unread">Unread</option>
+      <option value="reorder">Reorder alerts</option>
+      <option value="transfer">Item transfers</option>
+      <option value="import">Bulk imports</option>
+      <option value="general">Approvals &amp; updates</option>
+    </select>
+    <span id="notifSummary" class="notif-summary"></span>
+    <span class="controls-spacer"></span>
+    <button id="markAllBtn" class="btn btn-secondary btn-sm" onclick="markAllRead()" hidden>✓ Mark all read</button>
+    <button class="btn btn-secondary btn-sm" onclick="loadNotifications()">↻ Refresh</button>
+  </div>
+
+  <ul class="notif-list" id="notifList">
+    <li class="notif-status">Loading…</li>
+  </ul>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/notifications.js' %}" defer></script>
+{% endblock %}

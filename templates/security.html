@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Security &amp; Access{% endblock %}
+
+{% block page_title %}Security &amp; Access{% endblock %}
+{% block page_subtitle %}Who can do what, and who has been signing in{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/security.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div id="deniedNotice" class="notice danger hidden">
+  This page is restricted to <strong>admins</strong>.
+</div>
+
+<div id="securityBody" class="hidden">
+  <div class="view-toggle">
+    <button class="toggle-btn active" id="tabPermissions" onclick="showTab('permissions')">Permission Matrix</button>
+    <button class="toggle-btn" id="tabLogins" onclick="showTab('logins')">Login Activity</button>
+  </div>
+
+  <!-- ============ Permission matrix ============ -->
+  <div id="panelPermissions">
+    <div class="section">
+      <h3>Roles</h3>
+      <div class="role-legend" id="roleLegend"></div>
+      <ul class="matrix-notes" id="matrixNotes"></ul>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h3>Endpoint Permissions</h3>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨 Print</button>
+      </div>
+      <p class="hint">
+        Each cell lists the HTTP methods a role may use. Highlighted = allowed.
+      </p>
+      <div class="table-container">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>Resource</th>
+              <th>Admin</th>
+              <th>Manager</th>
+              <th>Staff</th>
+              <th>Viewer</th>
+              <th>Enforced by</th>
+            </tr>
+          </thead>
+          <tbody id="matrixBody">
+            <tr><td colspan="6" class="loading">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Action Rules</h3>
+      <p class="hint">
+        Extra checks made inside the handler, on top of the endpoint permissions above.
+      </p>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Endpoint</th>
+              <th class="ctr">Admin</th>
+              <th class="ctr">Manager</th>
+              <th class="ctr">Staff</th>
+              <th class="ctr">Viewer</th>
+              <th>Defined in</th>
+            </tr>
+          </thead>
+          <tbody id="actionsBody">
+            <tr><td colspan="7" class="loading">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Login activity ============ -->
+  <div id="panelLogins" class="hidden">
+    <div class="section">
+      <h3>Sign-in Summary</h3>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-title">Successful Logins</div><div class="stat-value ok" id="statLogins">—</div></div>
+        <div class="stat-card"><div class="stat-title">Failed Attempts</div><div class="stat-value bad" id="statFailed">—</div></div>
+        <div class="stat-card"><div class="stat-title">Failed (7 days)</div><div class="stat-value bad" id="statFailedRecent">—</div></div>
+        <div class="stat-card"><div class="stat-title">Distinct IPs</div><div class="stat-value" id="statIps">—</div></div>
+        <div class="stat-card"><div class="stat-title">Total Events</div><div class="stat-value" id="statEvents">—</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Last Seen</h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th class="ctr">Logins</th>
+              <th>Last Login</th>
+              <th>From</th>
+              <th>Client</th>
+            </tr>
+          </thead>
+          <tbody id="lastSeenBody">
+            <tr><td colspan="6" class="loading">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="controls">
+        <input type="text" id="searchInput" placeholder="🔍 Search email, IP or client..." />
+        <select id="eventFilter" class="filter-select">
+          <option value="">All events</option>
+          <option value="login">Signed in</option>
+          <option value="failed">Failed sign-in</option>
+          <option value="logout">Signed out</option>
+        </select>
+        <select id="userFilter" class="filter-select">
+          <option value="">All users</option>
+        </select>
+        <span class="date-range">
+          <input type="date" id="dateFrom" aria-label="From date" />
+          <span class="date-sep">to</span>
+          <input type="date" id="dateTo" aria-label="To date" />
+        </span>
+        <button class="btn btn-secondary btn-sm" onclick="resetLoginFilters()">Reset</button>
+      </div>
+
+      <div class="filter-note" id="loginNote"></div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>User</th>
+              <th>Event</th>
+              <th>IP Address</th>
+              <th>Client</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody id="loginBody">
+            <tr><td colspan="6" class="loading">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="loginPagination" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/security.js' %}" defer></script>
+{% endblock %}

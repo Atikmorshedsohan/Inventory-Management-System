@@ -89,6 +89,21 @@
   text-transform: uppercase;
 }
 
+.room-updated {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.room-updated .ic {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
 /* ---- Property rows ---- */
 .room-props {
   display: flex;
@@ -122,6 +137,7 @@
 }
 
 .room-prop-value.key-available { color: var(--success); }
+.room-prop-value.key-reserved { color: var(--warning); }
 .room-prop-value.key-in_use { color: var(--warning); }
 .room-prop-value.key-lost { color: var(--danger); }
 .room-prop-value.key-maintenance { color: var(--info); }
@@ -222,16 +238,43 @@
 
 .room-pending-row {
   display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  margin-top: 6px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--warning-border);
 }
 
-.room-pending-info {
-  flex: 1;
+.room-pending-row:first-of-type {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: 0;
+}
+
+.room-pending-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
+}
+
+.room-pending-name {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.room-pending-sub {
   font-size: var(--fs-xs);
   color: var(--text-muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.room-pending-row .btn {
+  width: 100%;
 }
 
 /* ---- Expandable item list ---- */

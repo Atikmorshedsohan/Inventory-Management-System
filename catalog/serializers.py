@@ -40,9 +40,11 @@ class ItemSerializer(serializers.ModelSerializer):
         model = Item
         fields = [
             "id", "item_id", "item_name", "category", "category_id", "room", "room_id",
-            "unit", "quantity", "min_quantity", "description", "updated_at",
+            "unit", "quantity", "opening_quantity", "min_quantity", "description",
+            "updated_at",
         ]
         read_only_fields = ["id", "item_id", "updated_at"]
+        extra_kwargs = {"opening_quantity": {"required": False}}
 
     def get_room(self, obj):
         if obj.room:
@@ -69,6 +71,10 @@ class PendingItemSerializer(serializers.ModelSerializer):
             "requested_by", "requested_by_name", "requested_at",
             "approved_by", "approved_by_name", "approved_at", "rejection_reason",
         ]
+        # ``status`` is read-only: it only moves through the audited
+        # approve/reject services. Left writable, the requester could PATCH
+        # their own row to "approved" and drop it out of the approval queue.
         read_only_fields = [
-            "pending_item_id", "requested_at", "approved_by", "approved_by_name", "approved_at",
+            "pending_item_id", "requested_at", "status",
+            "approved_by", "approved_by_name", "approved_at",
         ]

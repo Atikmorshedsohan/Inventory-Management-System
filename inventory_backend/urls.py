@@ -36,7 +36,12 @@ urlpatterns = [
    path('stock/', TemplateView.as_view(template_name='stock.html'), name='stock'),
    path('requisitions/', TemplateView.as_view(template_name='requisitions.html'), name='requisitions'),
    path('reports/', TemplateView.as_view(template_name='reports.html'), name='reports'),
+   path('reconciliation/', TemplateView.as_view(template_name='reconciliation.html'), name='reconciliation'),
+   path('room-snapshot/', TemplateView.as_view(template_name='room-snapshot.html'), name='room_snapshot'),
+   path('notifications/', TemplateView.as_view(template_name='notifications.html'), name='notifications'),
    path('audit/', TemplateView.as_view(template_name='audit.html'), name='audit'),
+   path('users/', TemplateView.as_view(template_name='users.html'), name='users'),
+   path('security/', TemplateView.as_view(template_name='security.html'), name='security'),
    path('roomwise-inventory/', TemplateView.as_view(template_name='roomwise-inventory.html'), name='roomwise_inventory'),
     
     # API Documentation

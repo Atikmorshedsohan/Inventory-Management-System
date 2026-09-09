@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}CSE Inventory — Users &amp; Roles{% endblock %}
+
+{% block page_title %}Users &amp; Roles{% endblock %}
+{% block page_subtitle %}Manage who has access and what they can do{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/users.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div id="permissionNotice" class="notice hidden">
+  You can view the directory, but only <strong>admins</strong> can change roles.
+</div>
+
+<div class="section">
+  <h3>Team</h3>
+  <div class="stat-grid" id="roleSummary">
+    <div class="stat-card"><div class="stat-title">Total Users</div><div class="stat-value" id="statTotal">—</div></div>
+    <div class="stat-card"><div class="stat-title">Admins</div><div class="stat-value" id="statAdmin">—</div></div>
+    <div class="stat-card"><div class="stat-title">Managers</div><div class="stat-value" id="statManager">—</div></div>
+    <div class="stat-card"><div class="stat-title">Staff</div><div class="stat-value" id="statStaff">—</div></div>
+    <div class="stat-card"><div class="stat-title">Viewers</div><div class="stat-value" id="statViewer">—</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="🔍 Search name, email or department..." />
+    <select id="roleFilter" class="filter-select">
+      <option value="">All roles</option>
+    </select>
+    <button class="btn btn-secondary btn-sm" onclick="loadUsers()">↻ Refresh</button>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Department</th>
+          <th>Role</th>
+          <th>Joined</th>
+          <th>Activity</th>
+        </tr>
+      </thead>
+      <tbody id="usersBody">
+        <tr><td colspan="6" class="loading">Loading users…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Per-user activity -->
+<div id="activityModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="activityTitle">Activity</h2>
+      <button class="modal-close" onclick="closeActivityModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="activity-meta" id="activityMeta"></div>
+      <ul class="activity-log" id="userActivityList">
+        <li class="act-empty">Loading…</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/users.js' %}" defer></script>
+{% endblock %}
