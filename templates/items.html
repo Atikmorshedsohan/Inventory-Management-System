@@ -21,7 +21,7 @@
 
       <div class="view-toggle">
         <button class="toggle-btn active" id="listToggleBtn" onclick="showListView()">📋 List View</button>
-        <button class="toggle-btn" id="pendingToggleBtn" onclick="showPendingView()">⏳ Pending</button>
+        <button class="toggle-btn" id="pendingToggleBtn" onclick="showPendingView()">⏳ Pending<span id="pendingCount" class="count-badge hidden">0</span></button>
       </div>
 
       <div id="listView" class="table-container">
@@ -45,9 +45,9 @@
         </table>
       </div>
 
-      <!-- Pending Items Section (Admin/Manager only) -->
+      <!-- Pending Items Section: approvers see every request, requesters see their own -->
       <div id="pendingItemsSection" class="hidden">
-        <h2 style="margin-bottom: 20px; font-size: 18px; font-weight: 600;">⏳ Pending Item Approvals</h2>
+        <h2 id="pendingHeading" style="margin-bottom: 20px; font-size: 18px; font-weight: 600;">⏳ Pending Item Approvals</h2>
         <div class="table-container">
           <table>
             <thead>

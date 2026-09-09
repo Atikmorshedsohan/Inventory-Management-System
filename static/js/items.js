@@ -248,43 +248,65 @@ function initDate() {
   }
 }
 
+function isApprover() {
+  return userRole && ['admin', 'manager'].includes(userRole);
+}
+
+function updatePendingBadge() {
+  const badge = document.getElementById('pendingCount');
+  if (!badge) return;
+  const n = pendingItems.length;
+  badge.textContent = n;
+  badge.classList.toggle('hidden', n === 0);
+}
+
 async function loadPendingItems() {
   const tbody = document.getElementById('pendingItemsTable');
-  const isApprover = userRole && ['admin', 'manager'].includes(userRole);
+  const heading = document.getElementById('pendingHeading');
 
-  if (!isApprover) {
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">Only admins and managers can review pending item approvals.</td></tr>';
-    return;
+  // Approvers see every open request; requesters see the ones they raised.
+  const url = isApprover()
+    ? `${API_URL}/pending-items/pending_approvals/`
+    : `${API_URL}/pending-items/?status=pending&page_size=100`;
+  if (heading) {
+    heading.textContent = isApprover()
+      ? '⏳ Pending Item Approvals'
+      : '⏳ My Pending Item Requests';
   }
 
   if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading pending items...</td></tr>';
 
   try {
-    const res = await fetch(`${API_URL}/pending-items/pending_approvals/`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) {
+      pendingItems = [];
+      updatePendingBadge();
       if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">Failed to load pending items</td></tr>';
       return;
     }
 
     const data = await res.json();
     pendingItems = Array.isArray(data) ? data : (data.results || []);
+    updatePendingBadge();
     renderPendingItems();
   } catch (error) {
     console.error('Error loading pending items:', error);
+    pendingItems = [];
+    updatePendingBadge();
     if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">Failed to load pending items</td></tr>';
   }
 }
 
 function renderPendingItems() {
   const tbody = document.getElementById('pendingItemsTable');
-  const canApprove = userRole && ['admin', 'manager'].includes(userRole);
+  const canApprove = isApprover();
   if (!tbody) return;
 
   if (!pendingItems.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">No pending item approvals</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">${
+      canApprove ? 'No item requests are waiting for approval.' : "You haven't requested any items that are still pending."
+    }</td></tr>`;
     return;
   }
 
@@ -382,15 +404,12 @@ async function submitReject(event) {
   initDate();
   registerEvents();
   await loadUserProfile();
-
-  // The Pending view is an approval queue — only admins/managers get the toggle.
-  const isApprover = userRole && ['admin', 'manager'].includes(userRole);
-  const pendingToggleBtn = document.getElementById('pendingToggleBtn');
-  if (pendingToggleBtn && !isApprover) pendingToggleBtn.style.display = 'none';
-
   await loadCategories();
   await loadRooms();
   await loadItems();
+  // Populate the "Pending" tab + its count badge on load (renders into the
+  // hidden section; the badge shows there are requests before you switch tabs).
+  await loadPendingItems();
 })();
 
 // Sidebar toggle logic (Items page)
