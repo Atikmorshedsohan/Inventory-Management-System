@@ -20,8 +20,8 @@
       </div>
 
       <div class="view-toggle">
-        <button class="toggle-btn active" onclick="showListView()">📋 List View</button>
-        <button class="toggle-btn" onclick="showRoomView()">🏢 Pending</button>
+        <button class="toggle-btn active" id="listToggleBtn" onclick="showListView()">📋 List View</button>
+        <button class="toggle-btn" id="pendingToggleBtn" onclick="showPendingView()">⏳ Pending</button>
       </div>
 
       <div id="listView" class="table-container">
@@ -45,12 +45,8 @@
         </table>
       </div>
 
-      <div id="roomView" class="room-view" style="display: none;">
-        <!-- Room-wise inventory will be rendered here -->
-      </div>
-
       <!-- Pending Items Section (Admin/Manager only) -->
-      <div id="pendingItemsSection" style="display: none; margin-top: 40px;">
+      <div id="pendingItemsSection" class="hidden">
         <h2 style="margin-bottom: 20px; font-size: 18px; font-weight: 600;">⏳ Pending Item Approvals</h2>
         <div class="table-container">
           <table>

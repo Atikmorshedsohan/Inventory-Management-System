@@ -220,99 +220,23 @@ function registerEvents() {
   if (categoryFilter) categoryFilter.addEventListener('change', renderItems);
 }
 
+function setActiveToggle(activeId) {
+  document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+  const el = document.getElementById(activeId);
+  if (el) el.classList.add('active');
+}
+
 function showListView() {
   document.getElementById('listView').classList.remove('hidden');
-  document.getElementById('roomView').classList.add('hidden');
-  document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.toggle-btn')[0].classList.add('active');
+  document.getElementById('pendingItemsSection').classList.add('hidden');
+  setActiveToggle('listToggleBtn');
 }
 
-function showRoomView() {
+function showPendingView() {
   document.getElementById('listView').classList.add('hidden');
-  document.getElementById('roomView').classList.remove('hidden');
-  document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.toggle-btn')[1].classList.add('active');
-  loadRoomwiseInventory();
-}
-
-async function loadRoomwiseInventory() {
-  const container = document.getElementById('roomView');
-  if (!container) return;
-  container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading rooms...</div>';
-  
-  try {
-    const res = await fetch(`${API_URL}/items/roomwise/`, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (res.status === 401) { logout(); return; }
-    const rooms = await res.json();
-    
-    if (!Array.isArray(rooms) || rooms.length === 0) {
-      container.innerHTML = '<div class="empty">No rooms found</div>';
-      return;
-    }
-    
-    container.innerHTML = '';
-    rooms.forEach((room, idx) => {
-      const lowStockCount = (room.items || []).filter(it => it.is_low_stock).length;
-      const roomCard = document.createElement('div');
-      roomCard.className = 'room-card';
-      roomCard.innerHTML = `
-        <div class="room-header" onclick="toggleRoom(${idx})">
-          <div class="room-title">📍 ${room.room || 'General Storage'}</div>
-          <div class="room-stats">
-            <div class="room-stat">📦 <span>${room.item_count || 0} items</span></div>
-            <div class="room-stat">📊 <span>${room.total_quantity || 0} total qty</span></div>
-            <div class="room-stat">⚠️ <span>${lowStockCount} low stock</span></div>
-          </div>
-        </div>
-        <div class="room-content hidden" id="room-${idx}">
-          <table>
-            <thead>
-              <tr>
-                <th>Item Name</th>
-                <th>Category</th>
-                <th>Unit</th>
-                <th>Quantity</th>
-                <th>Min Qty</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(room.items || []).map(item => `
-                <tr>
-                  <td>${item.item_name}</td>
-                  <td>${item.category || 'N/A'}</td>
-                  <td>${item.unit}</td>
-                  <td>${item.quantity}</td>
-                  <td>${item.min_quantity}</td>
-                  <td><span class="status-badge ${item.is_low_stock ? 'status-low' : 'status-available'}">${item.is_low_stock ? 'Low Stock' : 'Available'}</span></td>
-                  <td class="actions">
-                    ${userRole === 'admin' ? `
-                      <button class="action-btn" onclick="editItem(${item.item_id})" title="Edit">✏️</button>
-                      <button class="action-btn delete" onclick="deleteItem(${item.item_id})" title="Delete">🗑️</button>
-                    ` : '—'}
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-      container.appendChild(roomCard);
-    });
-  } catch (e) {
-    console.error('Failed to load room-wise inventory', e);
-    container.innerHTML = '<div class="error">Failed to load room-wise inventory</div>';
-  }
-}
-
-function toggleRoom(idx) {
-  const content = document.getElementById(`room-${idx}`);
-  if (content) {
-    content.classList.toggle('hidden');
-  }
+  document.getElementById('pendingItemsSection').classList.remove('hidden');
+  setActiveToggle('pendingToggleBtn');
+  loadPendingItems();
 }
 
 function initDate() {
@@ -325,41 +249,48 @@ function initDate() {
 }
 
 async function loadPendingItems() {
+  const tbody = document.getElementById('pendingItemsTable');
+  const isApprover = userRole && ['admin', 'manager'].includes(userRole);
+
+  if (!isApprover) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">Only admins and managers can review pending item approvals.</td></tr>';
+    return;
+  }
+
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="loading">Loading pending items...</td></tr>';
+
   try {
-    const isApprover = userRole && ['admin', 'manager'].includes(userRole);
-    const section = document.getElementById('pendingItemsSection');
-    if (!isApprover) {
-      if (section) section.style.display = 'none';
-      return;
-    }
-    const endpoint = 'pending-items/pending_approvals/';
-    const res = await fetch(`${API_URL}/${endpoint}`, {
+    const res = await fetch(`${API_URL}/pending-items/pending_approvals/`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    if (!res.ok) return; // No access or endpoint not available
+    if (res.status === 401) { logout(); return; }
+    if (!res.ok) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">Failed to load pending items</td></tr>';
+      return;
+    }
 
     const data = await res.json();
-    pendingItems = data;
+    pendingItems = Array.isArray(data) ? data : (data.results || []);
     renderPendingItems();
   } catch (error) {
     console.error('Error loading pending items:', error);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="empty">Failed to load pending items</td></tr>';
   }
 }
 
 function renderPendingItems() {
-  const section = document.getElementById('pendingItemsSection');
   const tbody = document.getElementById('pendingItemsTable');
   const canApprove = userRole && ['admin', 'manager'].includes(userRole);
+  if (!tbody) return;
 
-  if (!section || !tbody) return;
-
-  if (pendingItems.length === 0) {
-    section.style.display = 'none';
+  if (!pendingItems.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No pending item approvals</td></tr>';
     return;
   }
 
-  section.style.display = 'block';
-  tbody.innerHTML = pendingItems.map((item) => `
+  tbody.innerHTML = pendingItems.map((item) => {
+    const id = item.pending_item_id || item.id;
+    return `
     <tr>
       <td>${item.item_name}</td>
       <td>${item.category_name || item.category?.category_name || item.category || '—'}</td>
@@ -369,12 +300,12 @@ function renderPendingItems() {
       <td><span class="badge" style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Pending</span></td>
       <td>
         ${canApprove ? `
-          <button style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px;" onclick="approveItem(${item.pending_item_id || item.id})">Approve</button>
-          <button style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" onclick="openRejectModal('item', ${item.pending_item_id || item.id})">Reject</button>
+          <button style="padding: 6px 12px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 4px;" onclick="approveItem(${id})">Approve</button>
+          <button style="padding: 6px 12px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" onclick="openRejectModal('item', ${id})">Reject</button>
         ` : '—'}
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function approveItem(itemId) {
@@ -451,10 +382,15 @@ async function submitReject(event) {
   initDate();
   registerEvents();
   await loadUserProfile();
+
+  // The Pending view is an approval queue — only admins/managers get the toggle.
+  const isApprover = userRole && ['admin', 'manager'].includes(userRole);
+  const pendingToggleBtn = document.getElementById('pendingToggleBtn');
+  if (pendingToggleBtn && !isApprover) pendingToggleBtn.style.display = 'none';
+
   await loadCategories();
   await loadRooms();
   await loadItems();
-  await loadPendingItems();
 })();
 
 // Sidebar toggle logic (Items page)
