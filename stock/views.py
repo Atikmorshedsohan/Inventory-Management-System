@@ -1,27 +1,15 @@
 from django.db import transaction
-from django.http import HttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from catalog.models import Room
 from common.permissions import RolePermission
 
 from . import services
-from .models import (
-    PendingStockTransaction,
-    RoomItemHistory,
-    StockImportBatch,
-    StockTransaction,
-)
+from .models import PendingStockTransaction, StockTransaction
 from .serializers import (
-    ItemTransferSerializer,
     PendingStockTransactionSerializer,
-    RoomItemHistorySerializer,
-    StockImportBatchSerializer,
     StockTransactionSerializer,
 )
 
@@ -44,78 +32,6 @@ class StockTransactionViewSet(viewsets.ModelViewSet):
                 user=self.request.user,
                 room_id=self.request.data.get("room"),
             )
-
-
-class RoomItemHistoryViewSet(viewsets.ModelViewSet):
-    queryset = RoomItemHistory.objects.select_related(
-        "item", "from_room", "to_room", "user", "dest_item"
-    ).all()
-    serializer_class = RoomItemHistorySerializer
-    filterset_fields = ["item", "from_room", "to_room", "transfer_type"]
-    permission_classes = [RolePermission]
-
-    def perform_create(self, serializer):
-        with transaction.atomic():
-            history = serializer.save()
-            services.record_item_move(history=history)
-
-
-class ItemTransferView(APIView):
-    """Dedicated Move Item workflow (logs source + destination with snapshots)."""
-
-    permission_classes = [RolePermission]
-
-    def post(self, request):
-        serializer = ItemTransferSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        history = services.transfer_item(
-            item=data["item"],
-            to_room=data["to_room"],
-            quantity=data.get("quantity"),
-            user=request.user,
-            remarks=data.get("remarks", ""),
-        )
-        return Response(
-            RoomItemHistorySerializer(history).data, status=status.HTTP_201_CREATED
-        )
-
-
-class BulkStockImportView(APIView):
-    """Upload a CSV to stock-in many items at once. GET returns a blank template."""
-
-    permission_classes = [RolePermission]
-    parser_classes = [MultiPartParser, FormParser]
-
-    def get(self, request):
-        response = HttpResponse(services.IMPORT_TEMPLATE_CSV, content_type="text/csv")
-        response["Content-Disposition"] = (
-            'attachment; filename="stock_import_template.csv"'
-        )
-        return response
-
-    def post(self, request):
-        upload = request.FILES.get("file")
-        if upload is None:
-            return Response(
-                {"detail": "Attach a CSV file in the 'file' field."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        batch = services.bulk_import_stock(
-            file=upload, user=request.user, filename=getattr(upload, "name", "")
-        )
-        code = (
-            status.HTTP_201_CREATED
-            if batch.success_count
-            else status.HTTP_400_BAD_REQUEST
-        )
-        return Response(StockImportBatchSerializer(batch).data, status=code)
-
-
-class StockImportBatchViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = StockImportBatch.objects.select_related("uploaded_by").all()
-    serializer_class = StockImportBatchSerializer
-    permission_classes = [RolePermission]
 
 
 class PendingStockTransactionViewSet(viewsets.ModelViewSet):

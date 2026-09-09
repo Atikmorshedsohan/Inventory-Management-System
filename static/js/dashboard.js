@@ -267,13 +267,7 @@ async function loadRecentActivity() {
 async function loadRoomStats() {
   const totalEl = document.getElementById('rooms_total');
   const unassignedEl = document.getElementById('rooms_unassigned');
-  const movesEl = document.getElementById('rooms_moves_7d');
-  const list = document.getElementById('roomActivityList');
   if (!totalEl) return;
-
-  if (list) {
-    list.innerHTML = '<li class="loading"><div class="spinner"></div></li>';
-  }
 
   try {
     const res = await fetch(`${API_URL}/reports/rooms-overview/`, {
@@ -285,35 +279,9 @@ async function loadRoomStats() {
     const data = await res.json();
     totalEl.textContent = data.total_rooms ?? 0;
     unassignedEl.textContent = data.unassigned_items ?? 0;
-    movesEl.textContent = data.recent_moves_7d ?? 0;
-
-    if (list) {
-      const moves = Array.isArray(data.recent_moves) ? data.recent_moves.slice(0, 5) : [];
-      list.innerHTML = '';
-      if (!moves.length) {
-        list.innerHTML = '<li style="text-align:center;color:#999;padding:20px;">No recent room moves</li>';
-      } else {
-        moves.forEach(log => {
-          const when = log.moved_at ? new Date(log.moved_at).toLocaleString() : '';
-          const li = document.createElement('li');
-          li.className = 'activity-item';
-          li.innerHTML = `
-            <div class="activity-icon in">↔</div>
-            <div class="activity-content">
-              <div class="activity-title">${log.item_name || 'Item'} • ${log.from_room_name || '—'} → ${log.to_room_name || '—'}</div>
-              <div class="activity-detail">${log.user_name || 'System'}${when ? ' • ' + when : ''}</div>
-            </div>
-          `;
-          list.appendChild(li);
-        });
-      }
-    }
   } catch (e) {
     console.error('Failed to load room stats:', e);
-    totalEl.textContent = unassignedEl.textContent = movesEl.textContent = '—';
-    if (list) {
-      list.innerHTML = '<li style="text-align:center;color:#c62828;padding:20px;">Failed to load room activity</li>';
-    }
+    totalEl.textContent = unassignedEl.textContent = '—';
   }
 }
 

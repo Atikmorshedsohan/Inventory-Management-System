@@ -1,11 +1,6 @@
 from django.contrib import admin
 
-from .models import (
-    PendingStockTransaction,
-    RoomItemHistory,
-    StockImportBatch,
-    StockTransaction,
-)
+from .models import PendingStockTransaction, RoomItemHistory, StockTransaction
 
 
 @admin.register(StockTransaction)
@@ -19,24 +14,9 @@ class StockTransactionAdmin(admin.ModelAdmin):
 
 @admin.register(RoomItemHistory)
 class RoomItemHistoryAdmin(admin.ModelAdmin):
-    list_display = (
-        "history_id", "item", "transfer_type", "quantity", "from_room", "to_room",
-        "user", "moved_at",
-    )
-    list_filter = ("transfer_type", "moved_at", "from_room", "to_room")
+    list_display = ("history_id", "item", "from_room", "to_room", "user", "moved_at")
+    list_filter = ("moved_at", "from_room", "to_room")
     search_fields = ("item__item_name",)
-
-
-@admin.register(StockImportBatch)
-class StockImportBatchAdmin(admin.ModelAdmin):
-    list_display = (
-        "batch_id", "filename", "uploaded_by", "total_rows", "success_count",
-        "error_count", "created_at",
-    )
-    list_filter = ("created_at",)
-    search_fields = ("filename", "uploaded_by__name")
-    readonly_fields = ("created_at", "report")
-    ordering = ("-created_at",)
 
 
 @admin.register(PendingStockTransaction)

@@ -11,16 +11,12 @@ let currentFilter = 'all';
 const LEVEL_ICON = { info: 'ℹ️', success: '✅', warning: '⚠️', danger: '⛔' };
 const CATEGORY_LABEL = {
   reorder: 'Reorder alert',
-  transfer: 'Item transfer',
-  import: 'Bulk import',
   general: 'Update',
 };
 const EMPTY_TEXT = {
-  all: 'No notifications yet. Alerts about your requests, transfers and stock levels will show up here.',
+  all: 'No notifications yet. Alerts about your requests and stock levels will show up here.',
   unread: "You're all caught up — no unread notifications.",
   reorder: 'No reorder alerts. Every item is above its minimum level.',
-  transfer: 'No item-transfer notifications yet.',
-  import: 'No bulk-import notifications yet.',
   general: 'No approval or status updates yet.',
 };
 

@@ -10,8 +10,6 @@ LEVEL_CHOICES = (
 
 CATEGORY_CHOICES = (
     ("reorder", "Reorder alert"),
-    ("transfer", "Item transfer"),
-    ("import", "Bulk import"),
     ("general", "General"),
 )
 

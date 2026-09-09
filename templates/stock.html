@@ -25,14 +25,6 @@
             <span class="btn-icon">⬆️</span>
             <span class="btn-text">Stock OUT</span>
           </button>
-          <button class="action-btn btn-import" onclick="openBulkImportModal()" title="Stock in many items from a CSV">
-            <span class="btn-icon">📥</span>
-            <span class="btn-text">Bulk Import</span>
-          </button>
-          <button class="action-btn btn-move" onclick="openTransferModal()" title="Move an item between rooms">
-            <span class="btn-icon">🔀</span>
-            <span class="btn-text">Move Item</span>
-          </button>
         </div>
       </div>
 
@@ -82,51 +74,6 @@
           </thead>
           <tbody id="transactionsTable">
             <tr><td colspan="6" class="loading">Loading transactions...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      </div>
-
-      <div class="history-section" id="transfersSection" style="margin-top: 32px;">
-        <h2 class="section-title">🔀 Item Transfers</h2>
-        <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>From Room</th>
-              <th>To Room</th>
-              <th>Qty</th>
-              <th>Source (before → after)</th>
-              <th>Destination (before → after)</th>
-              <th>Date</th>
-              <th>By</th>
-            </tr>
-          </thead>
-          <tbody id="transfersTable">
-            <tr><td colspan="8" class="loading">Loading transfers...</td></tr>
-          </tbody>
-        </table>
-      </div>
-      </div>
-
-      <div class="history-section" id="importsSection" style="margin-top: 32px;">
-        <h2 class="section-title">📥 Recent Bulk Imports</h2>
-        <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>File</th>
-              <th>Rows</th>
-              <th>Imported</th>
-              <th>Failed</th>
-              <th>Date</th>
-              <th>By</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="importsTable">
-            <tr><td colspan="7" class="loading">Loading imports...</td></tr>
           </tbody>
         </table>
       </div>
@@ -253,77 +200,6 @@
         <div class="form-actions">
           <button type="button" class="btn-cancel" onclick="closeAddItemModal()">Cancel</button>
           <button type="submit" class="btn-submit">Save Item</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Bulk Import Modal -->
-  <div id="bulkImportModal" class="modal">
-    <div class="modal-content modal-item">
-      <div class="modal-header">
-        <div class="modal-title-wrapper">
-          <div class="modal-icon">📥</div>
-          <h2>Bulk Stock Import</h2>
-        </div>
-        <button class="modal-close" onclick="closeBulkImportModal()">✕</button>
-      </div>
-      <div class="form-group">
-        <p class="form-hint">
-          Upload a CSV with columns <strong>item_name</strong> (or <strong>item_id</strong>),
-          <strong>quantity</strong>, and optionally <strong>room</strong> and <strong>notes</strong>.
-          Each row is stocked <strong>IN</strong>.
-        </p>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="downloadImportTemplate()">⬇ Download template</button>
-      </div>
-      <div class="form-group">
-        <label for="importFile">CSV file <span class="required">*</span></label>
-        <input type="file" id="importFile" accept=".csv,text/csv" />
-      </div>
-      <div id="importResult" class="import-result hidden"></div>
-      <div class="form-actions">
-        <button type="button" class="btn-cancel" onclick="closeBulkImportModal()">Close</button>
-        <button type="button" class="btn-submit" id="importSubmitBtn" onclick="submitBulkImport()">Import</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Move Item Modal -->
-  <div id="transferModal" class="modal">
-    <div class="modal-content modal-item">
-      <div class="modal-header">
-        <div class="modal-title-wrapper">
-          <div class="modal-icon">🔀</div>
-          <h2>Move Item Between Rooms</h2>
-        </div>
-        <button class="modal-close" onclick="closeTransferModal()">✕</button>
-      </div>
-      <form onsubmit="submitTransfer(event)">
-        <div class="form-group">
-          <label for="transferItem">Item <span class="required">*</span></label>
-          <select id="transferItem" required onchange="onTransferItemChange()">
-            <option value="">-- Choose an item --</option>
-          </select>
-          <div class="form-hint" id="transferCurrent">Current room and quantity will show here.</div>
-        </div>
-        <div class="form-group">
-          <label for="transferToRoom">Destination room <span class="required">*</span></label>
-          <select id="transferToRoom" required>
-            <option value="">-- Choose a room --</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="transferQty">Quantity to move</label>
-          <input type="number" id="transferQty" min="1" placeholder="Leave blank to move all" />
-          <div class="form-hint">Leave blank (or enter the full amount) to relocate the whole item. Entering part of it splits the stock and logs an OUT/IN pair so the ledger stays balanced.</div>
-        </div>
-        <div class="form-group">
-          <label for="transferRemarks">Remarks</label>
-          <textarea id="transferRemarks" rows="2" placeholder="Reason for the move, reference, etc."></textarea>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-cancel" onclick="closeTransferModal()">Cancel</button>
-          <button type="submit" class="btn-submit">Move Item</button>
         </div>
       </form>
     </div>

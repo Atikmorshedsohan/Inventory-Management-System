@@ -79,22 +79,6 @@ class CrossAppNotificationTests(TestCase):
     def _notes(self, user, **filters):
         return Notification.objects.filter(recipient=user, **filters)
 
-    def test_item_transfer_notifies_the_actor(self):
-        from stock.services import transfer_item
-
-        transfer_item(item=self.item, to_room=self.lab2, quantity=4, user=self.staff)
-        note = self._notes(self.staff, category="transfer").first()
-        self.assertIsNotNone(note)
-        self.assertIn("Projector", note.title)
-
-    def test_bulk_import_notifies_the_uploader(self):
-        from django.core.files.uploadedfile import SimpleUploadedFile
-        from stock.services import bulk_import_stock
-
-        f = SimpleUploadedFile("i.csv", b"item_name,quantity\nProjector,3\n", content_type="text/csv")
-        bulk_import_stock(file=f, user=self.staff, filename="i.csv")
-        self.assertTrue(self._notes(self.staff, category="import").exists())
-
     def test_pending_stock_decision_notifies_the_requester(self):
         from stock.models import PendingStockTransaction
         from stock.services import approve_pending_stock, reject_pending_stock
@@ -221,15 +205,18 @@ class CrossAppNotificationTests(TestCase):
         )
 
     def test_a_failing_notification_never_breaks_the_operation(self):
-        """safe_notify swallows errors - the transfer still completes."""
+        """safe_notify swallows errors - the stock approval still completes."""
         from unittest.mock import patch
-        from stock.services import transfer_item
+        from stock.models import PendingStockTransaction
+        from stock.services import approve_pending_stock
 
+        pending = PendingStockTransaction.objects.create(
+            item=self.item, type="IN", quantity=3, requested_by=self.staff
+        )
         with patch("notifications.services.push", side_effect=RuntimeError("db down")):
-            history = transfer_item(item=self.item, to_room=self.lab2, user=self.admin)
+            approve_pending_stock(pending=pending, approver=self.admin)
         self.item.refresh_from_db()
-        self.assertEqual(self.item.room, self.lab2)
-        self.assertEqual(history.transfer_type, "full")
+        self.assertEqual(self.item.quantity, 13)
 
 
 class NotificationApiTests(TestCase):
@@ -259,7 +246,7 @@ class NotificationApiTests(TestCase):
         self.assertEqual(self.client.get("/api/notifications/unread_count/").data["count"], 0)
 
     def test_mark_all_read(self):
-        Notification.objects.create(recipient=self.user, title="Another", category="import")
+        Notification.objects.create(recipient=self.user, title="Another", category="general")
         res = self.client.post("/api/notifications/mark_all_read/")
         self.assertEqual(res.data["updated"], 2)
         self.assertEqual(self.client.get("/api/notifications/unread_count/").data["count"], 0)

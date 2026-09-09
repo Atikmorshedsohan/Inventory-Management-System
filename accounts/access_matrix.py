@@ -29,8 +29,6 @@ RESOURCE_SPECS = (
     ("pending-items", "Pending items", "/api/pending-items/", "catalog.views.PendingItemViewSet"),
     ("stock-transactions", "Stock transactions", "/api/stock-transactions/", "stock.views.StockTransactionViewSet"),
     ("pending-stock", "Pending stock", "/api/pending-stock-transactions/", "stock.views.PendingStockTransactionViewSet"),
-    ("transfers", "Item transfers", "/api/room-item-history/", "stock.views.RoomItemHistoryViewSet"),
-    ("stock-imports", "Bulk stock imports", "/api/stock-import-batches/", "stock.views.StockImportBatchViewSet"),
     ("requisitions", "Requisitions", "/api/requisitions/", "requisitions.views.RequisitionViewSet"),
     ("room-keys", "Room keys", "/api/room-keys/", "keys.views.RoomKeyViewSet"),
     ("key-borrows", "Key borrows", "/api/key-borrows/", "keys.views.KeyBorrowViewSet"),

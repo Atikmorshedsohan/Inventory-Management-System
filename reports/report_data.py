@@ -15,7 +15,7 @@ from django.utils import timezone
 from audit.models import AuditLog
 from catalog.models import Item
 from requisitions.models import Requisition, RequisitionItem
-from stock.models import RoomItemHistory, StockImportBatch, StockTransaction
+from stock.models import StockTransaction
 
 DEFAULT_DAYS = 90
 ROW_LIMIT = 500
@@ -82,7 +82,6 @@ def _summary_section(days, since):
         ["Items in stock", Item.objects.filter(quantity__gt=0).count()],
         ["Total units on hand", sum(i.quantity for i in Item.objects.all())],
         ["Stock transactions in period", StockTransaction.objects.filter(timestamp__gte=since).count()],
-        ["Item transfers in period", RoomItemHistory.objects.filter(moved_at__gte=since).count()],
         ["Requisitions in period", Requisition.objects.filter(created_at__gte=since).count()],
     ]
     return Section("Summary", "SUMMARY", ["Metric", "Value"], rows)
@@ -200,62 +199,6 @@ def _transactions_section(since):
     )
 
 
-def _transfers_section(since):
-    moves = (
-        RoomItemHistory.objects.select_related("item", "from_room", "to_room", "user")
-        .filter(moved_at__gte=since)
-        .order_by("-moved_at")[:ROW_LIMIT]
-    )
-    rows = [
-        [
-            m.item.item_name,
-            m.transfer_type or "full",
-            m.from_room.room_name if m.from_room else "Unassigned",
-            m.to_room.room_name if m.to_room else "Unassigned",
-            m.quantity if m.quantity is not None else "",
-            "" if m.source_qty_before is None else f"{m.source_qty_before} -> {m.source_qty_after}",
-            "" if m.dest_qty_before is None else f"{m.dest_qty_before} -> {m.dest_qty_after}",
-            m.user.name if m.user else "System",
-            _dt(m.moved_at),
-            (m.remarks or "").replace("\n", " "),
-        ]
-        for m in moves
-    ]
-    return Section(
-        "Transfers",
-        "ITEM TRANSFERS",
-        ["Item", "Type", "From Room", "To Room", "Quantity", "Source (before -> after)",
-         "Destination (before -> after)", "User", "Moved At", "Remarks"],
-        rows,
-    )
-
-
-def _imports_section(since):
-    batches = (
-        StockImportBatch.objects.select_related("uploaded_by")
-        .filter(created_at__gte=since)
-        .order_by("-created_at")[:ROW_LIMIT]
-    )
-    rows = [
-        [
-            b.batch_id,
-            b.filename,
-            b.total_rows,
-            b.success_count,
-            b.error_count,
-            b.uploaded_by.name if b.uploaded_by else "System",
-            _dt(b.created_at),
-        ]
-        for b in batches
-    ]
-    return Section(
-        "Bulk Imports",
-        "BULK STOCK IMPORTS",
-        ["Batch ID", "File", "Rows", "Imported", "Failed", "Uploaded By", "Created At"],
-        rows,
-    )
-
-
 def _requisitions_section(since):
     reqs = (
         Requisition.objects.select_related("user")
@@ -331,8 +274,6 @@ def build_report(days=DEFAULT_DAYS):
         _all_items_section(),
         _room_snapshot_section(),
         _transactions_section(since),
-        _transfers_section(since),
-        _imports_section(since),
         _requisitions_section(since),
         _requisition_items_section(since),
         _audit_section(since),

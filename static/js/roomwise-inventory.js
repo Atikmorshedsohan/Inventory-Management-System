@@ -797,7 +797,6 @@ async function loadRecentActivity() {
     const data = await res.json();
     console.log(' Activity data received:', data);
     console.log('- Transactions:', data.recent_transactions?.length || 0);
-    console.log('- Moves:', data.recent_moves?.length || 0);
     console.log('- Key borrows:', data.recent_key_borrows?.length || 0);
     
     // Render recent transactions (stock in/out)
@@ -826,92 +825,62 @@ async function loadRecentActivity() {
       }
     }
 
-    // Render recent room moves
+    // Render recent key activities
     if (roomMovesList) {
-      const moves = Array.isArray(data.recent_moves) ? data.recent_moves : [];
       const keyBorrows = Array.isArray(data.recent_key_borrows) ? data.recent_key_borrows : [];
-      console.log(' Processing room activities:');
-      console.log('- Moves array:', moves.length);
+      console.log(' Processing key activities:');
       console.log('- Key borrows array:', keyBorrows.length);
       roomMovesList.innerHTML = '';
-      
-      // Combine moves and key borrows, sort by timestamp
-      const allActivities = [];
-      
-      // Add room moves
-      moves.forEach(move => {
-        allActivities.push({
-          type: 'move',
-          timestamp: move.moved_at,
-          data: move
-        });
-      });
-      
-      // Add key borrows
-      keyBorrows.forEach(borrow => {
-        const timestamp = borrow.returned_at || borrow.borrowed_at || borrow.approved_at || borrow.requested_at;
-        allActivities.push({
-          type: 'key',
-          timestamp: timestamp,
-          data: borrow
-        });
-      });
-      
-      // Sort by timestamp descending
+
+      // Sort key borrows by most recent timestamp
+      const allActivities = keyBorrows.map(borrow => ({
+        type: 'key',
+        timestamp: borrow.returned_at || borrow.borrowed_at || borrow.approved_at || borrow.requested_at,
+        data: borrow
+      }));
       allActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      console.log('- Combined activities:', allActivities.length);
-      console.log('- Activities:', allActivities.map(a => `${a.type}: ${a.timestamp}`));
-      
+      console.log('- Key activities:', allActivities.length);
+
       if (allActivities.length === 0) {
-        roomMovesList.innerHTML = '<li class="empty-activity">No recent room moves or key activities</li>';
+        roomMovesList.innerHTML = '<li class="empty-activity">No recent key activities</li>';
       } else {
         allActivities.slice(0, 8).forEach(activity => {
           const li = document.createElement('li');
           li.className = 'activity-item';
-          
-          if (activity.type === 'move') {
-            const move = activity.data;
-            const when = move.moved_at ? new Date(move.moved_at).toLocaleString() : '';
-            li.innerHTML = '<div class="activity-icon move">' + icon('stock') + '</div>' +
-              '<div class="activity-content">' +
-              '<div class="activity-title">' + move.item_name + ' &bull; ' + (move.from_room_name || '&mdash;') + ' &rarr; ' + (move.to_room_name || '&mdash;') + '</div>' +
-              '<div class="activity-detail">' + move.user_name + (when ? ' &bull; ' + when : '') + '</div>' +
-              '</div>';
-          } else {
-            const borrow = activity.data;
-            const statusMap = {
-              returned: { ic: 'check', cls: 'in', text: 'Returned' },
-              borrowed: { ic: 'key', cls: 'key', text: 'Currently holding' },
-              approved: { ic: 'check', cls: 'in', text: 'Approved' }
-            };
-            const st = statusMap[borrow.status] || { ic: 'clock', cls: 'out', text: 'Requested' };
-            const when = activity.timestamp ? new Date(activity.timestamp).toLocaleString() : '';
 
-            // Build detailed borrower information
-            let borrowerDetails = borrow.borrower_name;
-            if (borrow.status === 'borrowed') {
-              const details = [];
-              if (borrow.borrower_phone) details.push('Phone: ' + borrow.borrower_phone);
-              if (borrow.borrower_email) details.push('Email: ' + borrow.borrower_email);
-              if (borrow.borrower_department) details.push('Dept: ' + borrow.borrower_department);
-              if (borrow.purpose) details.push('Purpose: ' + borrow.purpose);
-              if (borrow.expected_return_at) {
-                const returnDate = new Date(borrow.expected_return_at);
-                const isOverdue = returnDate < new Date();
-                details.push((isOverdue ? 'Overdue &mdash; due ' : 'Due ') + returnDate.toLocaleString());
-              }
-              if (details.length > 0) {
-                borrowerDetails += ' &bull; ' + details.join(' &bull; ');
-              }
+          const borrow = activity.data;
+          const statusMap = {
+            returned: { ic: 'check', cls: 'in', text: 'Returned' },
+            borrowed: { ic: 'key', cls: 'key', text: 'Currently holding' },
+            approved: { ic: 'check', cls: 'in', text: 'Approved' }
+          };
+          const st = statusMap[borrow.status] || { ic: 'clock', cls: 'out', text: 'Requested' };
+          const when = activity.timestamp ? new Date(activity.timestamp).toLocaleString() : '';
+
+          // Build detailed borrower information
+          let borrowerDetails = borrow.borrower_name;
+          if (borrow.status === 'borrowed') {
+            const details = [];
+            if (borrow.borrower_phone) details.push('Phone: ' + borrow.borrower_phone);
+            if (borrow.borrower_email) details.push('Email: ' + borrow.borrower_email);
+            if (borrow.borrower_department) details.push('Dept: ' + borrow.borrower_department);
+            if (borrow.purpose) details.push('Purpose: ' + borrow.purpose);
+            if (borrow.expected_return_at) {
+              const returnDate = new Date(borrow.expected_return_at);
+              const isOverdue = returnDate < new Date();
+              details.push((isOverdue ? 'Overdue &mdash; due ' : 'Due ') + returnDate.toLocaleString());
             }
-
-            li.innerHTML = '<div class="activity-icon ' + st.cls + '">' + icon(st.ic) + '</div>' +
-              '<div class="activity-content">' +
-              '<div class="activity-title">Key ' + st.text + ' &bull; ' + borrow.key_number + ' (' + borrow.room_name + ')</div>' +
-              '<div class="activity-detail">' + borrowerDetails + (when ? ' &bull; ' + when : '') + '</div>' +
-              '</div>';
+            if (details.length > 0) {
+              borrowerDetails += ' &bull; ' + details.join(' &bull; ');
+            }
           }
-          
+
+          li.innerHTML = '<div class="activity-icon ' + st.cls + '">' + icon(st.ic) + '</div>' +
+            '<div class="activity-content">' +
+            '<div class="activity-title">Key ' + st.text + ' &bull; ' + borrow.key_number + ' (' + borrow.room_name + ')</div>' +
+            '<div class="activity-detail">' + borrowerDetails + (when ? ' &bull; ' + when : '') + '</div>' +
+            '</div>';
+
           roomMovesList.appendChild(li);
         });
       }
@@ -922,7 +891,7 @@ async function loadRecentActivity() {
       activityList.innerHTML = '<li class="empty-activity">Error loading activity</li>';
     }
     if (roomMovesList) {
-      roomMovesList.innerHTML = '<li class="empty-activity">Error loading room moves</li>';
+      roomMovesList.innerHTML = '<li class="empty-activity">Error loading key activities</li>';
     }
   }
 }
