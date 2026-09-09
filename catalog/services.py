@@ -177,7 +177,7 @@ def roomwise_inventory():
     just-stocked item's room (including the "General Storage" pool for
     unassigned items) is right there without scrolling.
     """
-    items = Item.objects.select_related("category", "room").order_by("item_name")
+    items = Item.objects.select_related("category", "room").order_by("-item_id")
 
     def blank_room():
         return {

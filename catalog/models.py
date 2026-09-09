@@ -58,7 +58,9 @@ class Item(models.Model):
 
     class Meta:
         db_table = "items"
-        ordering = ["item_name"]
+        # Newest additions first: item_id is auto-incrementing, so descending
+        # id is insertion order (most recently added item on top), not A-Z.
+        ordering = ["-item_id"]
 
     def save(self, *args, **kwargs):
         # Django < 5.0 does not fold ``auto_now`` fields into ``update_fields``,
